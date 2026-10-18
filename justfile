@@ -5,6 +5,7 @@ project := "Lexcalli.xcodeproj"
 scheme := "Lexcalli"
 bundle_id := "dev.gitrus.lexcalli"
 derived_data := ".build/xcode"
+device := "iPhone 17"
 swift_paths := "Lexcalli LexcalliCore/Sources LexcalliCore/Tests LexcalliCore/Package.swift"
 
 # Command Line Tools ship Swift Testing outside the default search paths; with Xcode selected no flags are needed.
@@ -32,22 +33,13 @@ test *args:
 build: _require-xcode
     xcodebuild -project {{ project }} -scheme {{ scheme }} -destination 'generic/platform=iOS Simulator' -derivedDataPath {{ derived_data }} -quiet build
 
-# Build, install, and launch the app in a simulator (requires Xcode); defaults to the first available iPhone
-run device="": _require-xcode
-    #!/usr/bin/env zsh
-    set -euo pipefail
-    name='{{ device }}'
-    if [[ -z $name ]]; then
-        name=$(xcrun simctl list devices available | sed -nE 's/^ +(iPhone[^(]*[^ (]) \(.*/\1/p' | head -1)
-    fi
-    [[ -n $name ]] || { echo "No iPhone simulator found; add one in Xcode > Settings > Components" >&2; exit 1; }
-    echo "Simulator: $name"
-    xcodebuild -project {{ project }} -scheme {{ scheme }} -destination "platform=iOS Simulator,name=$name" -derivedDataPath {{ derived_data }} -quiet build
-    xcrun simctl boot "$name" 2>/dev/null || true
+# Build, install, and launch the app in a simulator (requires Xcode); `just run booted` uses the one already running
+run name=device: build
+    xcrun simctl boot '{{ name }}' 2>/dev/null || true
     # Xcode 27 replaces Simulator.app with DeviceHub.app
     open -a Simulator 2>/dev/null || open "$(xcode-select -p)/../Applications/DeviceHub.app"
-    xcrun simctl install "$name" {{ derived_data }}/Build/Products/Debug-iphonesimulator/{{ scheme }}.app
-    xcrun simctl launch "$name" {{ bundle_id }}
+    xcrun simctl install '{{ name }}' {{ derived_data }}/Build/Products/Debug-iphonesimulator/{{ scheme }}.app
+    xcrun simctl launch '{{ name }}' {{ bundle_id }}
 
 # Everything to run before a commit: lint, core tests, app build
 check: lint test
@@ -55,7 +47,15 @@ check: lint test
 
 [private]
 _require-xcode:
-    @if [[ "$(xcode-select -p)" == *CommandLineTools* ]]; then echo "Xcode is required: install it from the App Store, then run: sudo xcode-select -s /Applications/Xcode.app" >&2; exit 1; fi
+    #!/usr/bin/env zsh
+    [[ "$(xcode-select -p)" != *CommandLineTools* ]] && exit 0
+    if [[ -d /Applications/Xcode.app ]]; then
+        echo "Xcode is installed but not selected (xcode-select points to Command Line Tools). Run once:" >&2
+    else
+        echo "Xcode is not installed. Install it from the App Store, then run:" >&2
+    fi
+    echo "  sudo xcode-select -s /Applications/Xcode.app" >&2
+    exit 1
 
 # Open the project in Xcode
 open:

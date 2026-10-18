@@ -1,4 +1,4 @@
-// swift-tools-version: 6.2
+// swift-tools-version: 6.3
 import PackageDescription
 
 // UI-independent learning and content model. Code here stays nonisolated by
