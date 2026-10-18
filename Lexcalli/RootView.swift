@@ -4,6 +4,7 @@ struct RootView: View {
     @State private var selection: AppSection = .decks
     @State private var isMenuOpen = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.sideMenu) private var menuConfiguration
 
     var body: some View {
         NavigationStack {
@@ -20,7 +21,7 @@ struct RootView: View {
         .accessibilityHidden(isMenuOpen)
         .overlay {
             if isMenuOpen {
-                Color.black.opacity(0.3)
+                Color.black.opacity(menuConfiguration.scrimOpacity)
                     .ignoresSafeArea()
                     .onTapGesture { isMenuOpen = false }
                     .accessibilityHidden(true)
@@ -33,7 +34,10 @@ struct RootView: View {
                     .transition(reduceMotion ? .opacity : .move(edge: .leading))
             }
         }
-        .animation(reduceMotion ? .easeInOut(duration: 0.2) : .snappy, value: isMenuOpen)
+        .animation(
+            reduceMotion ? .easeInOut(duration: menuConfiguration.reduceMotionDuration) : menuConfiguration.animation,
+            value: isMenuOpen
+        )
     }
 
     @ViewBuilder

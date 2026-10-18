@@ -27,6 +27,7 @@ The upstream links are installation sources, not substitutes for local files. If
 ## UI conventions
 
 - Prefer system components, text styles, semantic colors, and SF Symbols; scale fixed sizes with `@ScaledMetric`.
+- Don't hardcode tunable values (durations, sizes, radii, fonts) in views. Each component reads them from its `…Configuration` struct (defaults live there) through the environment; override for a subtree with `.environment(\.flashCard.flipDuration, 0.8)`, or for the whole app in `LexcalliApp`.
 - Existing custom UI (the side menu, minimal Liquid Glass) is a deliberate product choice: keep it, and ask before replacing or extending it.
 
 ## Commands

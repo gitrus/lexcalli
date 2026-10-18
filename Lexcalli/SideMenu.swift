@@ -5,31 +5,30 @@ struct SideMenu: View {
     @Binding var selection: AppSection
     @Binding var isOpen: Bool
 
-    /// Concentric with the screen corners where the panel sits next to them; 28pt elsewhere.
-    private let panelShape = ConcentricRectangle(corners: .concentric(minimum: .fixed(28)))
+    @Environment(\.sideMenu) private var configuration
 
     /// "Lex" regular, "call" bold, "i" in the system serif. A brand name, so it is not localized.
-    private static let wordmark: AttributedString = {
+    private var wordmark: AttributedString {
         var call = AttributedString("call")
         call.inlinePresentationIntent = .stronglyEmphasized
         var i = AttributedString("i")
-        i.font = .system(.title, design: .serif)
+        i.font = .system(configuration.wordmarkStyle, design: .serif)
         return AttributedString("Lex") + call + i
-    }()
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(Self.wordmark)
-                .font(.title)
-                .padding(.horizontal, 12)
-                .padding(.bottom, 12)
+        VStack(alignment: .leading, spacing: configuration.rowSpacing) {
+            Text(wordmark)
+                .font(.system(configuration.wordmarkStyle))
+                .padding(.horizontal, configuration.padding)
+                .padding(.bottom, configuration.padding)
                 .accessibilityAddTraits(.isHeader)
 
             // Groups the rows' glass icons so they sample the panel consistently.
-            GlassEffectContainer(spacing: 4) {
-                VStack(spacing: 4) {
+            GlassEffectContainer(spacing: configuration.rowSpacing) {
+                VStack(spacing: configuration.rowSpacing) {
                     ForEach(AppSection.allCases) { section in
-                        SideMenuRow(section: section, isSelected: section == selection) {
+                        SideMenuRow(section: section, isSelected: section == selection, configuration: configuration) {
                             selection = section
                             isOpen = false
                         }
@@ -37,22 +36,26 @@ struct SideMenu: View {
                 }
             }
         }
-        .padding(12)
-        .frame(width: 280)
+        .padding(configuration.padding)
+        .frame(width: configuration.width)
         .frame(maxHeight: .infinity, alignment: .top)
         // Rows use concentric corners, so they follow this radius minus their inset.
-        .containerShape(.rect(cornerRadius: 28))
+        .containerShape(.rect(cornerRadius: configuration.cornerRadius))
         .background {
-            // The glass extends under the status bar and home indicator so its corners can follow the screen's.
+            // The glass extends under the status bar and home indicator so its corners can follow the screen's;
+            // they are concentric with the screen corners there and `cornerRadius` elsewhere.
             Color.clear
-                .glassEffect(.regular, in: panelShape)
-                .padding(.vertical, 8)
+                .glassEffect(
+                    .regular,
+                    in: ConcentricRectangle(corners: .concentric(minimum: .fixed(configuration.cornerRadius)))
+                )
+                .padding(.vertical, configuration.edgeInset)
                 .ignoresSafeArea(edges: .vertical)
         }
-        .padding(.leading, 8)
+        .padding(.leading, configuration.edgeInset)
         .gesture(
-            DragGesture(minimumDistance: 20).onEnded { value in
-                if value.translation.width < -60 { isOpen = false }
+            DragGesture(minimumDistance: configuration.swipeMinimumDistance).onEnded { value in
+                if value.translation.width < -configuration.swipeToCloseDistance { isOpen = false }
             }
         )
         .accessibilityAddTraits(.isModal)
@@ -63,12 +66,16 @@ struct SideMenu: View {
 private struct SideMenuRow: View {
     let section: AppSection
     let isSelected: Bool
+    let configuration: SideMenuConfiguration
     let action: () -> Void
 
-    /// Grows with Dynamic Type so the circle keeps fitting its symbol.
-    @ScaledMetric(relativeTo: .body) private var iconSize = 40.0
+    /// Dynamic Type factor, so the icon circle keeps fitting its symbol.
+    @ScaledMetric(relativeTo: .body) private var scale = 1.0
 
-    private let shape = ConcentricRectangle(corners: .concentric(minimum: .fixed(12)), isUniform: true)
+    private var shape: ConcentricRectangle {
+        ConcentricRectangle(
+            corners: .concentric(minimum: .fixed(configuration.rowMinimumCornerRadius)), isUniform: true)
+    }
 
     var body: some View {
         Button(action: action) {
@@ -77,12 +84,11 @@ private struct SideMenuRow: View {
             } icon: {
                 // Matches the round glass toolbar button that opens the menu.
                 Image(systemName: section.systemImage)
-                    .frame(width: iconSize, height: iconSize)
+                    .frame(width: configuration.iconSize * scale, height: configuration.iconSize * scale)
                     .glassEffect(.regular, in: .circle)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 4)
+            .padding(configuration.rowInsets)
             .contentShape(shape)
         }
         .buttonStyle(.plain)
