@@ -10,7 +10,7 @@ An Anki-inspired language-learning app for mastering vocabulary, collocations, a
 ## Getting started
 
 - Requirements: Xcode 26.4+ (Swift 6.3+) and [just](https://github.com/casey/just).
-- `just open` opens the project; `just run` launches the app in a simulator; `just check` runs lint, core tests and the app build.
+- `just open` opens the project; `just run` launches the app in a simulator (`just run booted` reuses the one already open); `just check` runs lint, core tests and the app build.
 
 ## Contributor guide
 

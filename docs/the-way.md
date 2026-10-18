@@ -19,7 +19,7 @@ This document describes **how we work**. Changes to these documents are committe
 
 1. **Define the slice.** State the user-visible result, relevant boundaries, and a few observable acceptance criteria. Record open product questions before implementing assumptions. Use `operational/` directories to track tickets and changes. After brainstorming, use docs to preserve the most important decisions (agile architecture invariants).
 2. **Implement.** An agent developer changes the smallest coherent surface, including tests and fixtures. Keep business logic isolated from presentation. Keep it simple, vertically decoupled where possible, and complete.
-3. **Verify locally.** Build with Xcode; run relevant unit/integration tests; exercise changed screens in the simulator. Inspect actual behavior, screenshots, navigation, empty states, and errors where applicable. Report what ran and what could not run.
+3. **Verify locally.** Run `just check` (lint, core tests, app build) and any other relevant tests; exercise changed screens in the simulator. Inspect actual behavior, screenshots, navigation, empty states, and errors where applicable. Report what ran and what could not run.
 4. **Review independently.** For meaningful changes, use a separate review pass (another agent or developer) focused on correctness, missed cases, unnecessary complexity, and compatibility. The author addresses findings; review output is not an automatic approval.
 5. **Human phase.** Acceptance testing with users.
 6. **Merge a coherent change.** Confirm acceptance criteria and risk-appropriate verification. Prefer small diffs and useful commit messages.

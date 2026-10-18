@@ -47,6 +47,7 @@ Card and exercise history use [two separate review logs](data-layering.md#review
 - Each card has its own Anki-compatible scheduling state. An explicit scheduled card review updates that state using FSRS.
 - Card review state and the card review log remain the authoritative scheduling data.
 - The logic for counting reviews for exercises should be part of the exercise type declaration. The rule must specify the assessed card(s), rating, and treatment of hints and retries.
+- Scheduling uses FSRS-6 through the [swift-fsrs](https://github.com/open-spaced-repetition/swift-fsrs) package rather than our own implementation. Rating (1–4) and card state (0–3) values keep Anki's numbering; compatibility tests guard this.
 
 
 ## Deliberately avoided

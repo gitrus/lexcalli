@@ -24,9 +24,16 @@ The upstream links are installation sources, not substitutes for local files. If
 - `LexcalliCore/` — local Swift package with the UI-independent learning and content model. Not main-actor isolated; tested with Swift Testing via `just test`, no simulator needed.
 - Scheduling uses [swift-fsrs](https://github.com/open-spaced-repetition/swift-fsrs) pinned to a commit on `main` (FSRS-6; the latest tag is FSRS-5). Pass FSRS-6 weights explicitly — the library defaults to FSRS-5. Use `just fsrs-upstream` to check for a tagged release.
 
+## UI conventions
+
+- Prefer system components, text styles, semantic colors, and SF Symbols; scale fixed sizes with `@ScaledMetric`.
+- Existing custom UI (the side menu, minimal Liquid Glass) is a deliberate product choice: keep it, and ask before replacing or extending it.
+
 ## Commands
 
 Run `just` to list recipes. Before handing off a change run `just check` (lint, core tests, app build). The app build and `just run` need Xcode selected via `xcode-select`; with Command Line Tools only, `just check` fails at the app build step on purpose.
+
+`just run booted` installs into the simulator that is already running. To check a screen, take a screenshot with `xcrun simctl io booted screenshot <file>.png`. Xcode 27 replaces Simulator.app with DeviceHub.app.
 
 ## Engineering decisions
 
