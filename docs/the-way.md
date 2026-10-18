@@ -1,34 +1,37 @@
 # The way
 
-How we develop and ship Lexcalli. This is a lightweight working agreement for a small, AI-assisted product, not an enterprise SDLC template.
+How we develop and ship Lexcalli.
+This is a lightweight working agreement for a small, AI-assisted product, not an enterprise SDLC template.
 
-Product decisions live in [product](product.md), [data layering](data-layering.md), and [learning engine](learning-engine.md). This document describes **how we work**. Changes to these documents are committed alongside the decisions they capture; Git history is our decision log. No separate ADR process.
+To find all available documents, check [README.md](README.md).
+This document describes **how we work**. Changes to these documents are committed alongside the decisions they capture; Git history is our decision log. No separate ADR process.
 
 ## Principles
 
-- **Ship vertical slices.** Prefer one usable end-to-end behavior over completing a whole architectural layer.
-- **Prove behavior, not activity.** Generated code, successful compilation, and a green CI job are not evidence of a working feature by themselves.
+- **Prefer vertical slices.** Prefer one usable end-to-end behavior over completing a whole architectural layer.
+- **Prove behavior, not activity.** Generated code, successful compilation, and a green CI job are not evidence of a working feature by themselves. We need human feedback as proof in our workflow.
 - **Keep the core testable without SwiftUI.** Learning, scheduling, import/export, and persistence must not depend on UI interaction to be verified.
-- **Keep the workflow cheaper than the work.** No sprint ceremony, mandatory ticket for every edit, permanent agent swarm, or framework chosen for hypothetical scale.
+- **Keep the workflow cheaper than the work.** No framework chosen for hypothetical scale. We use agile architecture and approve invariants, not a "long-term architectural vision".
 - **Use native tools first.** SwiftUI, Swift Testing, XCTest where needed, Xcode tooling, and existing [agent instructions](../.agents/AGENTS.md). Add infrastructure only when it solves an observed problem.
-- **Preserve learner data.** Silent corruption of notes, media, scheduling, or review history is a release-blocking defect.
+- **Preserve user-generated data.** Corruption of notes, media, scheduling, or review history is unacceptable.
 
 ## From idea to merged change
 
-1. **Define the slice.** State the user-visible result, relevant boundaries, and a few observable acceptance criteria. Record open product questions before implementing assumptions. Use GitHub Issues for work worth tracking, not every trivial edit.
-2. **Implement.** An agent or developer changes the smallest coherent surface, including tests and fixtures. Keep business logic isolated from presentation. Do not introduce a new abstraction without a current use case.
+1. **Define the slice.** State the user-visible result, relevant boundaries, and a few observable acceptance criteria. Record open product questions before implementing assumptions. Use `operational/` directories to track tickets and changes. After brainstorming, use docs to preserve the most important decisions (agile architecture invariants).
+2. **Implement.** An agent developer changes the smallest coherent surface, including tests and fixtures. Keep business logic isolated from presentation. Keep it simple, vertically decoupled where possible, and complete.
 3. **Verify locally.** Build with Xcode; run relevant unit/integration tests; exercise changed screens in the simulator. Inspect actual behavior, screenshots, navigation, empty states, and errors where applicable. Report what ran and what could not run.
 4. **Review independently.** For meaningful changes, use a separate review pass (another agent or developer) focused on correctness, missed cases, unnecessary complexity, and compatibility. The author addresses findings; review output is not an automatic approval.
-5. **Merge a coherent change.** Confirm acceptance criteria and risk-appropriate verification. Prefer small diffs and useful commit messages. A PR is useful for substantial/agent-authored changes; do not require one for every documentation fix.
+5. **Human phase.** Acceptance testing with users.
+6. **Merge a coherent change.** Confirm acceptance criteria and risk-appropriate verification. Prefer small diffs and useful commit messages.
 
-An agent may implement and test, but **human judgment owns scope, architectural tradeoffs, and release acceptance**. Parallel agents are optional and justified by independent work, not agent count.
+An agent may implement and test, but **human judgment owns scope, architectural tradeoffs, and release acceptance**. Parallel agents are optional and justified when requested.
 
 ## Verification strategy
 
 Use the cheapest trustworthy feedback first:
 
 - **Unit tests:** exercise validation, knowledge attribution, review transitions, FSRS-related policy, and other deterministic domain logic.
-- **Integration/fixture tests:** real Anki imports, media references, compatible export/round-trip behavior, persistence, and schema migrations.
+- **Integration/fixture tests:** real imports in Anki's data format, media references, compatible export/round-trip behavior, persistence, and schema migrations.
 - **UI tests and simulator checks:** critical learning flows, typed input (including Greek accents), navigation, accessibility-sensitive interactions, and recovery from failed operations.
 - **Device checks:** important interaction, audio, lifecycle, and storage behavior before wider distribution. Simulator success alone is insufficient.
 
@@ -36,10 +39,10 @@ CI should build and run relevant tests, **fail if expected tests were not actual
 
 ### Non-negotiable data invariants
 
-- An exercise referencing multiple cards must not silently award knowledge or review credit to context/distractor cards.
-- Exercise attempts and Anki-compatible review events are distinct; only explicitly designated reviews affect scheduling.
-- Import/export must not silently discard supported card content, media, identifiers needed for compatibility, or review history.
-- Interruptions, app restarts, upgrades, and retries must not silently duplicate or erase learning progress.
+- Keep [card and exercise review logs](data-layering.md#review-logs) distinct; apply the [exercise-to-card review rules](learning-engine.md#relationship-to-fsrs) when generating card review events.
+- User-generated data is the most important part, so:
+  - Import/export must not silently discard supported card content, media, identifiers needed for compatibility, or review history.
+  - Interruptions, app restarts, upgrades, and retries must not silently duplicate or erase learning progress.
 - Backend-supplied exercise definitions must respect explicit client capabilities and versioned contracts once that interface exists.
 
 These requirements are specified in more detail by the product and learning-engine documents. Add regression fixtures when a bug reveals a missing invariant.

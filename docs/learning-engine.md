@@ -2,20 +2,20 @@
 
 ## Purpose
 
-Use Anki-compatible cards and scheduling as the established review foundation while supporting richer language-learning exercises. Keep content, observable practice, and knowledge/scheduling distinct.
+Lexcalli is a language-learning application built around spaced repetition and active recall.
+The data layer consists of cards and scheduling compatible with Anki's data format.
+Keep content, observable practice, and knowledge/scheduling distinct.
 
-## Concepts and relationships
+## Exercise handling
 
-- **Learning content:** Anki notes and fields hold words, collocations, meanings, and examples; media is attached or referenced. Topics and relationships are Lexcalli extensions.
-- **Card:** An Anki card expresses one study prompt/direction from a note (for example recognition versus production), with its own review state.
-- **Exercise definition:** describes the interaction and required capabilities, not a particular learner's answer.
-- **Exercise instance:** concrete question built from one or more cards/content items. References have roles such as target, context, and distractor.
-- **Exercise attempt/session:** captures interaction, answer, correctness and optional timing/hints, independently of Anki review events.
-- **Review / scheduling:** explicit scheduled card review updates Anki-compatible per-card state and review history (FSRS-oriented). Not every exercise attempt is a review.
+The [user-facing concepts](product.md#user-facing-concepts) are defined in the product document. The engine handles them through:
 
-A card is a scheduling unit. A note/word is not automatically a single scalar unit of knowledge; separately tracked skill-level mastery is **not yet decided**.
+- **Exercise definitions:** declare the interaction and required capabilities, not a particular learner's answer.
+- **Exercise instances:** bind a concrete question to one or more cards/content items. References have roles such as target, context, and distractor.
 
-## Required exercise capabilities
+## Exercise evidence
+
+The [product requirements](product.md#required-capabilities) define the supported exercise types. The table below describes the evidence each interaction can provide.
 
 | Type | Example evidence |
 | --- | --- |
@@ -30,39 +30,33 @@ These are intended interaction types, not promises that each provides an equival
 
 ## Multi-card behavior
 
-One exercise may reference many cards; each reference has a role. A correct response concerning one target does **not** award credit to distractors or other cards shown for context. Some exercises may assess more than one target; the attribution policy must be explicit rather than inferred.
+One exercise may reference many cards; each reference has a role. Correct and incorrect responses do not award the same FSRS credit; that credit should be calculated using additional logic.
 
 ## Validation and observations
 
 - Each exercise type needs defined expected answers and validation behavior.
-- Store the observed answer and evaluation separately from review scheduling.
 - Typing and sentence exercises need an explicit future policy for acceptable variants (inflections, punctuation, accents, spelling and alternative translations).
-- Hints, revealed answers, and response modality can affect the strength of evidence; do not silently convert correctness into mastery.
+- Hints, revealed answers, and response modality can affect the strength of knowledge evidence.
+
+## Review logs
+
+Card and exercise history use [two separate review logs](data-layering.md#review-logs). When an exercise contributes to a card review, link the corresponding log entries according to the exercise type's review rules. Not every exercise attempt produces a card review.
 
 ## Relationship to FSRS
 
-- Anki card review state and review history remain the authoritative scheduling data.
-- Exercise attempts belong to Lexcalli history, even if an instance references Anki cards.
-- Only an explicitly designated scheduled review should currently change FSRS state. If another exercise type is later permitted to count as a review, the rule must specify the assessed card(s), rating, and treatment of hints and retries.
-- Keep review and exercise history linked where applicable, but avoid duplicate review events.
+- Each card has its own Anki-compatible scheduling state. An explicit scheduled card review updates that state using FSRS.
+- Card review state and the card review log remain the authoritative scheduling data.
+- The logic for counting reviews for exercises should be part of the exercise type declaration. The rule must specify the assessed card(s), rating, and treatment of hints and retries.
 
-## Backend-driven extensibility
-
-- The backend may return **versioned declarative** exercise definitions and content references.
-- SwiftUI renders supported interaction primitives and validates/records answers according to an agreed contract.
-- Media and exercises must be usable with the appropriate client capabilities; unsupported configurations need a defined fallback.
-- No arbitrary downloaded JavaScript or Wasm execution initially: avoid a second mobile runtime and code-distribution complexity.
 
 ## Deliberately avoided
 
-- **Exercise = Anki card:** rules out exercises with multiple references and different interaction shapes.
-- **Every successful exercise updates knowledge:** overstates what recognition or hints demonstrate.
+- **Exercise = card:** rules out exercises with multiple references and different interaction shapes.
 - **A separate invented spaced-repetition algorithm:** loses the benefit of Anki/FSRS compatibility.
-- **Hardcoded exercise variants per release:** unnecessarily couples content authoring to client releases.
 
 ## Open questions
 
-- Whether an exercise can ever update FSRS directly, and which kinds of evidence justify doing so.
+- How eligible non-flashcard exercises produce card reviews, including rating rules and the treatment of hints and retries.
 - Word-level/skill-level knowledge estimation, if it becomes necessary.
 - Exercise selection, difficulty adaptation, topic scheduling, distractor selection, and grading policies.
 - Schema/protocol for exercise definitions, validation ownership, and offline execution.
