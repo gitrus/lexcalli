@@ -15,6 +15,8 @@ nonisolated struct FlashCardConfiguration: Equatable {
     /// How far long text may shrink to fit, as a fraction of `textFont`.
     var minimumTextScale: CGFloat = 0.5
     var imageMaxHeight: CGFloat = 220
+    /// Symbol shown when the image fails to load.
+    var imagePlaceholderFont: Font = .largeTitle
     var imageMinimumCornerRadius: CGFloat = 12
 }
 

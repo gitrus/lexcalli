@@ -1,3 +1,4 @@
+import LexcalliCore
 import SwiftUI
 
 struct RootView: View {
@@ -43,7 +44,8 @@ struct RootView: View {
     @ViewBuilder
     private var sectionContent: some View {
         switch selection {
-        case .decks: DecksView()
+        // Sample decks until decks can be imported.
+        case .decks: DecksView(decks: Deck.samples)
         case .practice: PracticeView()
         case .settings: SettingsView()
         }

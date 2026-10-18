@@ -70,7 +70,7 @@ private struct CardFace: View {
                                 )
                             )
                     case .failure:
-                        Image(systemName: "photo").font(.largeTitle).foregroundStyle(.secondary)
+                        Image(systemName: "photo").font(configuration.imagePlaceholderFont).foregroundStyle(.secondary)
                     default:
                         ProgressView()
                     }
