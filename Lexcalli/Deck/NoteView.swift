@@ -8,12 +8,14 @@ struct NoteView: View {
     let meaningLanguage: Locale.Language
 
     @State private var isFlipped = false
+    @AppStorage(PreferenceKey.cardSerifText) private var serifText = false
+    @AppStorage(PreferenceKey.cardShowsTranscription) private var showsTranscription = true
 
     var body: some View {
         FlashCard(
             front: CardSide(
                 text: note.term,
-                transcription: note.transcription,
+                transcription: showsTranscription ? note.transcription : nil,
                 imageURL: note.imageURL,
                 audioURLs: note.audioURLs,
                 language: termLanguage
@@ -21,6 +23,7 @@ struct NoteView: View {
             back: CardSide(text: note.meaning, detail: note.example, language: meaningLanguage),
             isFlipped: $isFlipped
         )
+        .fontDesign(serifText ? .serif : nil)
         .padding()
     }
 }

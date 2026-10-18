@@ -6,6 +6,7 @@ struct RootView: View {
     @State private var isMenuOpen = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.sideMenu) private var menuConfiguration
+    @AppStorage(PreferenceKey.appearance) private var appearance = Appearance.system
 
     var body: some View {
         NavigationStack {
@@ -39,6 +40,7 @@ struct RootView: View {
             reduceMotion ? .easeInOut(duration: menuConfiguration.reduceMotionDuration) : menuConfiguration.animation,
             value: isMenuOpen
         )
+        .preferredColorScheme(appearance.colorScheme)
     }
 
     @ViewBuilder

@@ -15,6 +15,11 @@ nonisolated struct SideMenuConfiguration: Equatable {
     var rowMinimumCornerRadius: CGFloat = 12
     /// Icon circle size at the default text size; it grows with Dynamic Type.
     var iconSize: CGFloat = 40
+    /// Largest factor the icon circle grows by with Dynamic Type, so long titles keep their room.
+    var iconMaxScale: CGFloat = 1.5
+    /// Gap between the panel and the trailing screen edge at accessibility text sizes, where the panel widens to fit
+    /// its rows; the scrim stays visible there, so tapping it still closes the menu.
+    var accessibilityTrailingInset: CGFloat = 48
     var scrimOpacity: Double = 0.3
     var animation: Animation = .snappy
     /// Crossfade used instead of the slide when Reduce Motion is on.

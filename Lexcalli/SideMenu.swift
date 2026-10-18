@@ -6,6 +6,7 @@ struct SideMenu: View {
     @Binding var isOpen: Bool
 
     @Environment(\.sideMenu) private var configuration
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     /// "Lex" regular, "call" bold, "i" in the system serif. A brand name, so it is not localized.
     private var wordmark: AttributedString {
@@ -37,7 +38,8 @@ struct SideMenu: View {
             }
         }
         .padding(configuration.padding)
-        .frame(width: configuration.width)
+        // At accessibility text sizes the panel grows toward the trailing edge, so titles don't break mid-word.
+        .frame(maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : configuration.width)
         .frame(maxHeight: .infinity, alignment: .top)
         // Rows use concentric corners, so they follow this radius minus their inset.
         .containerShape(.rect(cornerRadius: configuration.cornerRadius))
@@ -53,6 +55,7 @@ struct SideMenu: View {
                 .ignoresSafeArea(edges: .vertical)
         }
         .padding(.leading, configuration.edgeInset)
+        .padding(.trailing, dynamicTypeSize.isAccessibilitySize ? configuration.accessibilityTrailingInset : 0)
         .gesture(
             DragGesture(minimumDistance: configuration.swipeMinimumDistance).onEnded { value in
                 if value.translation.width < -configuration.swipeToCloseDistance { isOpen = false }
@@ -70,7 +73,9 @@ private struct SideMenuRow: View {
     let action: () -> Void
 
     /// Dynamic Type factor, so the icon circle keeps fitting its symbol.
-    @ScaledMetric(relativeTo: .body) private var scale = 1.0
+    @ScaledMetric(relativeTo: .body) private var textScale = 1.0
+    /// Capped, so at accessibility sizes the circle leaves room for the title.
+    private var scale: Double { min(textScale, configuration.iconMaxScale) }
 
     private var shape: ConcentricRectangle {
         ConcentricRectangle(
