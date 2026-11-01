@@ -19,11 +19,11 @@ struct DeckOverviewView: View {
                 // Same symbols as the word rows in the deck.
                 Section("Words") {
                     row("Total", systemImage: "text.book.closed", count: deck.notes.count)
-                    row("With Audio", systemImage: "speaker.wave.2", count: deck.notes.count { !$0.audioURLs.isEmpty })
+                    row("With Audio", systemImage: "speaker.wave.2", count: deck.notes.count { !$0.audio.isEmpty })
                     row(
                         "With Transcription", systemImage: "character.phonetic",
                         count: deck.notes.count { $0.transcription != nil })
-                    row("With Image", systemImage: "photo", count: deck.notes.count { $0.imageURL != nil })
+                    row("With Image", systemImage: "photo", count: deck.notes.count { $0.image != nil })
                 }
             }
             .navigationTitle(deck.name)
@@ -46,5 +46,5 @@ struct DeckOverviewView: View {
 }
 
 #Preview {
-    DeckOverviewView(deck: Deck.samples[0])
+    DeckOverviewView(deck: SampleLibrary.previewDecks[0])
 }

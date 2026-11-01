@@ -43,7 +43,7 @@ CI should build and run relevant tests, **fail if expected tests were not actual
 - User-generated data is the most important part, so:
   - Import/export must not silently discard supported card content, media, identifiers needed for compatibility, or review history.
   - Interruptions, app restarts, upgrades, and retries must not silently duplicate or erase learning progress.
-- Backend-supplied exercise definitions must respect explicit client capabilities and versioned contracts once that interface exists.
+- Backend-supplied exercise types must respect explicit client capabilities and versioned contracts once that interface exists.
 
 These requirements are specified in more detail by the product and learning-engine documents. Add regression fixtures when a bug reveals a missing invariant.
 

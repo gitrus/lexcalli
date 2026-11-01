@@ -6,7 +6,7 @@ scheme := "Lexcalli"
 bundle_id := "dev.gitrus.lexcalli"
 derived_data := ".build/xcode"
 device := "iPhone 17"
-swift_paths := "Lexcalli LexcalliCore/Sources LexcalliCore/Tests LexcalliCore/Package.swift"
+swift_paths := "Lexcalli LexcalliUITests LexcalliCore/Sources LexcalliCore/Tests LexcalliCore/Package.swift"
 
 # Command Line Tools ship Swift Testing outside the default search paths; with Xcode selected no flags are needed.
 
@@ -33,6 +33,18 @@ test *args:
 build: _require-xcode
     xcodebuild -project {{ project }} -scheme {{ scheme }} -destination 'generic/platform=iOS Simulator' -derivedDataPath {{ derived_data }} -quiet build
 
+# Run the app's UI tests in a simulator, by name or UDID (requires Xcode); fails unless the expected tests ran
+ui-test name=device: _require-xcode
+    #!/usr/bin/env zsh
+    set -euo pipefail
+    rm -rf {{ derived_data }}/ui-tests.xcresult
+    # Two simulators can share a name; a UDID picks one.
+    if [[ '{{ name }}' =~ '^[0-9A-Fa-f-]{36}$' ]]; then destination='id={{ name }}'; else destination='name={{ name }}'; fi
+    xcodebuild -project {{ project }} -scheme {{ scheme }} -destination "platform=iOS Simulator,$destination" \
+        -derivedDataPath {{ derived_data }} -resultBundlePath {{ derived_data }}/ui-tests.xcresult -quiet test
+    xcrun xcresulttool get test-results summary --path {{ derived_data }}/ui-tests.xcresult --compact \
+        | python3 -c "import json, sys; s = json.load(sys.stdin); p, f = s['passedTests'], s['failedTests']; print(f'UI tests: {p} passed, {f} failed'); sys.exit(0 if p >= 1 and f == 0 else 1)"
+
 # Build, install, and launch the app in a simulator (requires Xcode); `just run booted` uses the one already running
 run name=device: build
     xcrun simctl boot '{{ name }}' 2>/dev/null || true
@@ -41,9 +53,12 @@ run name=device: build
     xcrun simctl install '{{ name }}' {{ derived_data }}/Build/Products/Debug-iphonesimulator/{{ scheme }}.app
     xcrun simctl launch '{{ name }}' {{ bundle_id }}
 
-# Everything to run before a commit: lint, core tests, app build
+# Everything to run before a commit: lint, package tests (core, stores, import), app build
 check: lint test
     just build
+
+# `check` plus the app's UI tests in a simulator
+check-all: check ui-test
 
 [private]
 _require-xcode:

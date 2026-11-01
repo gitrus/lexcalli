@@ -13,12 +13,7 @@ Specific personas, supported languages, and audience priorities are not yet fixe
 
 ## User-facing concepts
 
-- **Learning content:** words, collocations, expressions, meanings, and example sentences, with supporting images and audio.
-- **Card:** a study prompt based on learning content, such as recognizing a word or recalling it from its meaning.
-- **Topic:** a group of related vocabulary for practice.
-- **Exercise:** an interaction used to practice learning content. It may involve one or more cards and is not limited to a flashcard review.
-- **Exercise attempt:** a learner's response to an exercise, including any hints used or answers revealed.
-- **Scheduled review:** a card review that contributes to future review scheduling; not every exercise attempt is a scheduled review.
+Learning content, cards, topics, exercises, exercise attempts, and scheduled reviews are defined in the [glossary](glossary.md).
 
 ## Required capabilities
 

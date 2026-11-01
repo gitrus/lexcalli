@@ -1,0 +1,91 @@
+{
+  "anki": "26.9.3",
+  "zstandard": "0.25.0",
+  "rights": "Synthetic note text, generated PNG/WAV and fixture-generator code dedicated to CC0-1.0; Anki itself remains under its upstream license.",
+  "fixtures": {
+    "current-new.apkg": {
+      "export_options": "with_media: true\n",
+      "entries": [
+        "meta",
+        "collection.anki21b",
+        "collection.anki2",
+        "0",
+        "1",
+        "media"
+      ],
+      "database_entry": "collection.anki21b",
+      "raw_db_magic": "28b52ffd005894a800caf770374d201c",
+      "decoded_db_magic": "53514c69746520666f726d6174203300",
+      "media_decoded_hex": "0a230a09706978656c2e706e6710451a142892e21f6719362cdf1450be41b0a44d124e1add0a230a08746f6e652e77617610ec0c1a1465b32c4020045a9d124ea36d57eb4f8909e4a943",
+      "notes": 4,
+      "cards": 8,
+      "revlog": 0,
+      "fsrs_cards": 0,
+      "schema_version": 18,
+      "sha256": "77c1da9f202e1fad00377eeb7e0bddbf6039cf7499f9884f2eefe16594be75b2"
+    },
+    "current-progress.apkg": {
+      "export_options": "with_scheduling: true\nwith_deck_configs: true\nwith_media: true\n",
+      "entries": [
+        "meta",
+        "collection.anki21b",
+        "collection.anki2",
+        "0",
+        "1",
+        "media"
+      ],
+      "database_entry": "collection.anki21b",
+      "raw_db_magic": "28b52ffd0058f4ad002afffc384d201c",
+      "decoded_db_magic": "53514c69746520666f726d6174203300",
+      "media_decoded_hex": "0a230a09706978656c2e706e6710451a142892e21f6719362cdf1450be41b0a44d124e1add0a230a08746f6e652e77617610ec0c1a1465b32c4020045a9d124ea36d57eb4f8909e4a943",
+      "notes": 4,
+      "cards": 8,
+      "revlog": 3,
+      "fsrs_cards": 3,
+      "schema_version": 18,
+      "sha256": "f0ae9c30931a9ec640c3b87bea6771caf987c0df26eddeee3c0c146adc48f744"
+    },
+    "legacy-new.apkg": {
+      "export_options": "with_media: true\nlegacy: true\n",
+      "entries": [
+        "meta",
+        "collection.anki21",
+        "collection.anki2",
+        "0",
+        "1",
+        "media"
+      ],
+      "database_entry": "collection.anki21",
+      "raw_db_magic": "53514c69746520666f726d6174203300",
+      "decoded_db_magic": "53514c69746520666f726d6174203300",
+      "media_decoded_hex": "7b2230223a22746f6e652e776176222c2231223a22706978656c2e706e67227d",
+      "notes": 4,
+      "cards": 8,
+      "revlog": 0,
+      "fsrs_cards": 0,
+      "schema_version": 11,
+      "sha256": "9621adbb5518075286b668d1356ff568e0a9de05c0ad17bf72df277737683007"
+    },
+    "legacy-progress.apkg": {
+      "export_options": "with_scheduling: true\nwith_deck_configs: true\nwith_media: true\nlegacy: true\n",
+      "entries": [
+        "meta",
+        "collection.anki21",
+        "collection.anki2",
+        "0",
+        "1",
+        "media"
+      ],
+      "database_entry": "collection.anki21",
+      "raw_db_magic": "53514c69746520666f726d6174203300",
+      "decoded_db_magic": "53514c69746520666f726d6174203300",
+      "media_decoded_hex": "7b2230223a22706978656c2e706e67222c2231223a22746f6e652e776176227d",
+      "notes": 4,
+      "cards": 8,
+      "revlog": 3,
+      "fsrs_cards": 3,
+      "schema_version": 11,
+      "sha256": "6dbca31cebd42290576124411d1ea9c29ae433338847ef6581052f33c4ba81bc"
+    }
+  }
+}

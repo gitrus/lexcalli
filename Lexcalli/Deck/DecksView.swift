@@ -2,30 +2,38 @@ import LexcalliCore
 import SwiftUI
 
 struct DecksView: View {
-    let decks: [Deck]
+    @Environment(\.library) private var library
+    @State private var decks: Observed<[DeckSummary]> = .loading
 
     var body: some View {
-        List(decks) { deck in
-            NavigationLink(value: deck) {
+        List(decks.value ?? []) { deck in
+            NavigationLink(value: AppRoute.deck(deck.id)) {
                 DeckRow(deck: deck)
             }
         }
         .overlay {
-            if decks.isEmpty {
+            switch decks {
+            case .loading:
+                ProgressView()
+            case .failed(let message):
+                LoadFailureView(title: "Decks Unavailable", message: message)
+            case .value(let decks) where decks.isEmpty:
                 ContentUnavailableView(
                     "No Decks Yet",
                     systemImage: "rectangle.stack",
                     description: Text("Imported decks will appear here.")
                 )
+            case .value:
+                EmptyView()
             }
         }
         .navigationTitle("Decks")
-        .navigationDestination(for: Deck.self) { DeckView(deck: $0) }
+        .observe({ [decks = library.decks] in decks.deckSummaries() }, id: 0, into: $decks)
     }
 }
 
 private struct DeckRow: View {
-    let deck: Deck
+    let deck: DeckSummary
 
     @Environment(\.locale) private var locale
     @Environment(\.deckList) private var configuration
@@ -40,18 +48,21 @@ private struct DeckRow: View {
                 .foregroundStyle(.secondary)
                 .accessibilityLabel("\(languages.0) to \(languages.1)")
         }
-        .badge(deck.notes.count)
+        .badge(deck.noteCount)
     }
 }
 
 #Preview {
     NavigationStack {
-        DecksView(decks: Deck.samples)
+        DecksView()
+            .appRouteDestinations()
     }
+    .environment(\.library, SampleLibrary.preview)
 }
 
 #Preview("Empty") {
     NavigationStack {
-        DecksView(decks: [])
+        DecksView()
     }
+    .environment(\.library, Library(store: InMemoryStore(), media: SampleLibrary.preview.media))
 }

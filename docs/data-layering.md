@@ -3,7 +3,7 @@
 Lexcalli is a language-learning application built around spaced repetition and active recall. Currently, the best and most well-established ecosystem is Anki. So Lexcalli builds on top of Anki's established data models, learning model, and ecosystem.
 This document describes the current product and data boundaries rather than a database schema.
 
-User-facing definitions are in [product concepts](product.md#user-facing-concepts), and product requirements are defined in [required capabilities](product.md#required-capabilities) and [product boundaries](product.md#product-boundaries). The sections below describe their data representation and ownership.
+Terms are defined in the [glossary](glossary.md), and product requirements are defined in [required capabilities](product.md#required-capabilities) and [product boundaries](product.md#product-boundaries). The sections below describe their data representation and ownership.
 
 ## Data layers
 
@@ -19,16 +19,16 @@ Anki compatibility is a domain and interchange boundary, **not a commitment to c
 ### Lexcalli learning extensions
 
 - **Topics and relationships:** group notes and connect words, collocations, and example contexts (for example, these can be covered by a tagging system).
-- **Exercise definitions:** declarative configurations for exercise interactions and validation.
-- **Exercise instances:** references to content and Anki cards, including their roles (target, contextual evidence, distractor).
-- **Exercise attempts and sessions:** records associated with exercise instances; attempt details belong in the exercise review log.
+- **Exercise types:** built into the app for now; configurable exercise types (declarative interaction and validation settings) may become Lexcalli data later.
+- **Exercise references:** an exercise refers to content and cards in roles such as target, contextual evidence, and distractor.
+- **Exercise attempts and practice sessions:** attempts are recorded as exercise review events in the exercise review log; practice sessions group the events recorded during them.
 
 ### Review logs
 
 There will be two separate review logs:
 
-- **Card review log:** part of the Anki-compatible foundation; records per-card review events and ratings used for scheduling and FSRS.
-- **Exercise review log:** part of the Lexcalli learning extensions; records exercise attempts, answers, correctness, hints, timing, and references to the cards involved.
+- **Card review log:** part of the Anki-compatible foundation; records *card review events*: per-card ratings used for scheduling and FSRS.
+- **Exercise review log:** part of the Lexcalli learning extensions; records *exercise review events*: exercise attempts with answers, correctness, hints, timing, and references to the cards involved.
 
 The data layer stores both histories and references between related entries. The [learning engine](learning-engine.md#review-logs) defines when and how those links are created.
 
@@ -42,5 +42,5 @@ The data layer stores both histories and references between related entries. The
 
 - Concrete persistence schema, identifiers, sync conflicts, and offline-first implementation.
 - AnkiWeb / two-way sync (not an initial requirement).
-- Storage representation for exercise definitions, attempts, and links between the two review logs.
+- Storage representation for configurable exercise types, attempts, and links between the two review logs.
 - Media conversion/storage strategy.

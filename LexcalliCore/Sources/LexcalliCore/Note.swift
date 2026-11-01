@@ -12,8 +12,8 @@ public struct Note: Identifiable, Hashable, Sendable {
     public var transcription: String?
     /// An example sentence using `term`.
     public var example: String?
-    public var imageURL: URL?
-    public var audioURLs: [URL]
+    public var image: MediaReference?
+    public var audio: [MediaReference]
 
     public init(
         id: UUID = UUID(),
@@ -21,15 +21,15 @@ public struct Note: Identifiable, Hashable, Sendable {
         meaning: String,
         transcription: String? = nil,
         example: String? = nil,
-        imageURL: URL? = nil,
-        audioURLs: [URL] = []
+        image: MediaReference? = nil,
+        audio: [MediaReference] = []
     ) {
         self.id = id
         self.term = term
         self.meaning = meaning
         self.transcription = transcription
         self.example = example
-        self.imageURL = imageURL
-        self.audioURLs = audioURLs
+        self.image = image
+        self.audio = audio
     }
 }

@@ -1,33 +1,45 @@
 import LexcalliCore
 import SwiftUI
 
-/// The words in one deck.
 struct DeckView: View {
-    let deck: Deck
+    let deckID: Deck.ID
 
+    @Environment(\.library) private var library
+    @State private var deck: Observed<Deck?> = .loading
     @State private var isShowingOverview = false
 
     var body: some View {
-        List(deck.notes) { note in
-            NavigationLink(value: note) {
-                NoteRow(note: note, termLanguage: deck.termLanguage, meaningLanguage: deck.meaningLanguage)
+        let deck = deck.value ?? nil
+        List(deck?.notes ?? []) { note in
+            NavigationLink(value: AppRoute.word(note.id, deck: deckID)) {
+                NoteRow(note: note, termLanguage: deck!.termLanguage, meaningLanguage: deck!.meaningLanguage)
             }
         }
         .overlay {
-            if deck.notes.isEmpty {
+            switch self.deck {
+            case .loading:
+                ProgressView()
+            case .failed(let message):
+                LoadFailureView(title: "Deck Unavailable", message: message)
+            case .value(nil):
+                ContentUnavailableView("Deck Not Found", systemImage: "rectangle.stack")
+            case .value(let deck?) where deck.notes.isEmpty:
                 ContentUnavailableView(
                     "No Words Yet",
                     systemImage: "text.book.closed",
                     description: Text("Words in this deck will appear here.")
                 )
+            case .value:
+                EmptyView()
             }
         }
-        .navigationTitle(deck.name)
+        .navigationTitle(deck?.name ?? "")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu("Deck Options", systemImage: "ellipsis") {
                     Button("Overview", systemImage: "info.circle") { isShowingOverview = true }
-                    // Placeholders: decks are read-only sample data until they can be imported and stored.
+                        .disabled(deck == nil)
+                    // Placeholders until decks can be edited.
                     Group {
                         Button("Rename", systemImage: "pencil") {}
                         Divider()
@@ -38,11 +50,9 @@ struct DeckView: View {
             }
         }
         .sheet(isPresented: $isShowingOverview) {
-            DeckOverviewView(deck: deck)
+            if let deck { DeckOverviewView(deck: deck) }
         }
-        .navigationDestination(for: Note.self) {
-            NoteView(note: $0, termLanguage: deck.termLanguage, meaningLanguage: deck.meaningLanguage)
-        }
+        .observe({ [decks = library.decks] in decks.deck(deckID) }, id: deckID, into: $deck)
     }
 }
 
@@ -70,7 +80,7 @@ private struct NoteRow: View {
             // What the note's card offers besides text; the audio symbol matches the card's play button.
             // Transcription goes last, next to the chevron, so it lines up across rows: most notes have one.
             HStack {
-                if !note.audioURLs.isEmpty {
+                if !note.audio.isEmpty {
                     Image(systemName: "speaker.wave.2")
                         .accessibilityLabel("Has audio")
                 }
@@ -87,6 +97,8 @@ private struct NoteRow: View {
 
 #Preview {
     NavigationStack {
-        DeckView(deck: Deck.samples[0])
+        DeckView(deckID: SampleLibrary.previewDecks[0].id)
+            .appRouteDestinations()
     }
+    .environment(\.library, SampleLibrary.preview)
 }

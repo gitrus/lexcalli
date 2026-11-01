@@ -1,12 +1,39 @@
 {
-  "originHash" : "09c8e5e4de3e1d00ee7522b515297057b4defba275a3ebaf6fc656b7f61fefe4",
+  "originHash" : "f1910eb529a00797d731f8d7f112e4d4ac740bce954200f09557973897501a92",
   "pins" : [
+    {
+      "identity" : "grdb.swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/groue/GRDB.swift.git",
+      "state" : {
+        "revision" : "b83108d10f42680d78f23fe4d4d80fc88dab3212",
+        "version" : "7.11.1"
+      }
+    },
     {
       "identity" : "swift-fsrs",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/open-spaced-repetition/swift-fsrs.git",
       "state" : {
         "revision" : "4fbaf20184d62f82a9f44f343337c61a2c5483e9"
+      }
+    },
+    {
+      "identity" : "zipfoundation",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/weichsel/ZIPFoundation.git",
+      "state" : {
+        "revision" : "22787ffb59de99e5dc1fbfe80b19c97a904ad48d",
+        "version" : "0.9.20"
+      }
+    },
+    {
+      "identity" : "zstd",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/facebook/zstd.git",
+      "state" : {
+        "revision" : "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+        "version" : "1.5.7"
       }
     }
   ],
