@@ -7,6 +7,8 @@ nonisolated struct SettingsListConfiguration: Equatable {
     var iconSize: CGFloat = 32
     /// Size of the symbol inside the circle.
     var iconScale: Image.Scale = .small
+    /// License texts on the About page.
+    var licenseFont: Font = .footnote
 }
 
 extension EnvironmentValues {

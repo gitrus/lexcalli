@@ -26,14 +26,21 @@ final class StudyRelaunchUITests: XCTestCase {
         app.buttons["Good"].tap()
 
         XCTAssertTrue(app.staticTexts["2 of 4"].waitForExistence(timeout: 10))
-        app.buttons["Show Answer"].tap()
+        // Anywhere on the card flips it, not only its text: here, the blank band near its top.
+        let card = app.descendants(matching: .any)["flashCard"]
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        XCTAssertTrue(card.label.contains("die Blume"), card.label)
+        card.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.08)).tap()
+        XCTAssertTrue(app.buttons["Easy"].waitForExistence(timeout: 5))
+        // Only the shown side is accessible.
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "flashCard").count, 1)
+        XCTAssertFalse(card.label.contains("die Blume"), card.label)
         app.buttons["Easy"].tap()
         XCTAssertTrue(app.staticTexts["3 of 4"].waitForExistence(timeout: 10))
 
+        // Finish leaves at once, back to the deck chooser.
         app.navigationBars.buttons["Finish"].tap()
-        XCTAssertTrue(app.staticTexts["Session Complete"].waitForExistence(timeout: 10))
-        attachScreenshot("Session complete", app)
-        app.buttons["Done"].tap()
+        XCTAssertTrue(app.navigationBars["Practice"].waitForExistence(timeout: 10))
 
         let before = statuses(of: "der Schmetterling", in: app)
         XCTAssertTrue(before.forward.contains("1 review"), before.forward)
@@ -47,6 +54,24 @@ final class StudyRelaunchUITests: XCTestCase {
         let after = statuses(of: "der Schmetterling", in: app)
         XCTAssertEqual(after.forward, before.forward)
         XCTAssertEqual(after.reverse, before.reverse)
+    }
+
+    func testAnsweringLastCardEndsSession() throws {
+        let app = launch()
+        show("Practice", in: app)
+        tap(containing: "Japanese Nature", in: app)
+
+        for position in 1...3 {
+            XCTAssertTrue(app.staticTexts["\(position) of 3"].waitForExistence(timeout: 10))
+            app.buttons["Show Answer"].tap()
+            app.buttons["Good"].tap()
+        }
+
+        XCTAssertTrue(app.staticTexts["Session Complete"].waitForExistence(timeout: 10))
+        attachScreenshot("Session complete", app)
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.staticTexts["3 of 6 cards studied"].waitForExistence(timeout: 10))
+        attachScreenshot("Practice decks", app)
     }
 
     private func launch() -> XCUIApplication {

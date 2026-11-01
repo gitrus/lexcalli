@@ -28,14 +28,20 @@ struct SideMenu: View {
             // Groups the rows' glass icons so they sample the panel consistently.
             GlassEffectContainer(spacing: configuration.rowSpacing) {
                 VStack(spacing: configuration.rowSpacing) {
-                    ForEach(AppSection.allCases) { section in
+                    ForEach(AppSection.allCases.filter { $0 != .settings }) { section in
                         SideMenuRow(section: section, isSelected: section == selection, configuration: configuration) {
-                            selection = section
-                            isOpen = false
+                            select(section)
                         }
                     }
                 }
             }
+
+            Spacer(minLength: configuration.padding)
+
+            SettingsButton(isSelected: selection == .settings, configuration: configuration) {
+                select(.settings)
+            }
+            .frame(maxWidth: .infinity)
         }
         .padding(configuration.padding)
         // At accessibility text sizes the panel grows toward the trailing edge, so titles don't break mid-word.
@@ -63,6 +69,34 @@ struct SideMenu: View {
         )
         .accessibilityAddTraits(.isModal)
         .accessibilityAction(.escape) { isOpen = false }
+    }
+
+    private func select(_ section: AppSection) {
+        selection = section
+        isOpen = false
+    }
+}
+
+private struct SettingsButton: View {
+    let isSelected: Bool
+    let configuration: SideMenuConfiguration
+    let action: () -> Void
+
+    @ScaledMetric(relativeTo: .body) private var textScale = 1.0
+    private var size: CGFloat { configuration.settingsIconSize * min(textScale, configuration.iconMaxScale) }
+
+    var body: some View {
+        Button(action: action) {
+            Label(AppSection.settings.title, systemImage: AppSection.settings.systemImage)
+                .labelStyle(.iconOnly)
+                .font(configuration.settingsSymbolFont)
+                .frame(width: size, height: size)
+                .glassEffect(.regular, in: .circle)
+                .contentShape(.circle)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 

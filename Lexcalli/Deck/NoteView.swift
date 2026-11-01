@@ -11,11 +11,12 @@ struct NoteView: View {
     @Environment(\.library) private var library
     @AppStorage(PreferenceKey.cardSerifText) private var serifText = false
     @AppStorage(PreferenceKey.cardShowsTranscription) private var showsTranscription = true
+    @AppStorage(PreferenceKey.cardSpeaksMissingAudio) private var speaksMissingAudio = true
 
     var body: some View {
         let sides = note.sides(
             .forward, termLanguage: termLanguage, meaningLanguage: meaningLanguage, media: library.media,
-            showsTranscription: showsTranscription)
+            showsTranscription: showsTranscription, speaksMissingAudio: speaksMissingAudio)
         FlashCard(front: sides.front, back: sides.back, isFlipped: $isFlipped)
             .fontDesign(serifText ? .serif : nil)
             .padding()

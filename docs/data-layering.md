@@ -21,11 +21,11 @@ Anki compatibility is a domain and interchange boundary, **not a commitment to c
 - **Topics and relationships:** group notes and connect words, collocations, and example contexts (for example, these can be covered by a tagging system).
 - **Exercise types:** built into the app for now; configurable exercise types (declarative interaction and validation settings) may become Lexcalli data later.
 - **Exercise references:** an exercise refers to content and cards in roles such as target, contextual evidence, and distractor.
-- **Exercise attempts and practice sessions:** attempts are recorded as exercise review events in the exercise review log; practice sessions group the events recorded during them.
+- **Exercise attempts and practice sessions:** attempts are recorded as exercise review events in the exercise review log (planned); practice sessions, which exist today, group the events recorded during them.
 
 ### Review logs
 
-There will be two separate review logs:
+There will be two separate review logs. The card review log exists today; the exercise review log is planned.
 
 - **Card review log:** part of the Anki-compatible foundation; records *card review events*: per-card ratings used for scheduling and FSRS.
 - **Exercise review log:** part of the Lexcalli learning extensions; records *exercise review events*: exercise attempts with answers, correctness, hints, timing, and references to the cards involved.
@@ -40,7 +40,7 @@ The data layer stores both histories and references between related entries. The
 
 ## Not decided yet
 
-- Concrete persistence schema, identifiers, sync conflicts, and offline-first implementation.
+- Persistence schema beyond what milestone 1 built (content, cards, practice sessions, card review events; see [data management](data-management.md)), sync conflicts, and offline-first implementation.
 - AnkiWeb / two-way sync (not an initial requirement).
 - Storage representation for configurable exercise types, attempts, and links between the two review logs.
 - Media conversion/storage strategy.

@@ -17,7 +17,7 @@ nonisolated struct Library: Sendable {
 
     /// Empty, so a view outside a composed hierarchy shows no decks.
     static let unavailable = Library(
-        store: InMemoryStore(),
+        store: try! DatabaseStore.inMemory(),
         media: MediaLibrary(root: URL.temporaryDirectory.appending(path: "Lexcalli-unavailable-media"))
     )
 }
@@ -48,6 +48,9 @@ enum LibraryPhase {
             let library = Library(store: store, media: MediaLibrary(root: root.appending(path: "Media")))
             if ProcessInfo.processInfo.environment["LEXCALLI_SEED_SAMPLES"] != nil {
                 try await SampleLibrary.seedIfEmpty(library)
+            } else {
+                // A starter deck that fails to load never keeps the library from opening.
+                try? await StarterDeck.addIfNew(to: library, named: root.lastPathComponent)
             }
             return .ready(library)
         } catch StoreOpenError.migrationFailed(_, let reason) {

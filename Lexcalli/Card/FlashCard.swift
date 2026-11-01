@@ -19,20 +19,24 @@ struct FlashCard: View {
         }
         .frame(maxHeight: configuration.maxHeight)
         .animation(.smooth(duration: configuration.flipDuration), value: isFlipped)
+        // Only the shown side: `accessibilityHidden` on the turned-away face left it readable.
+        .accessibilityRepresentation {
+            CardFace(side: isFlipped ? back : front, configuration: configuration)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint("Flips the card")
+                .accessibilityAction { isFlipped.toggle() }
+                .accessibilityIdentifier("flashCard")
+        }
     }
 
     private func face(_ side: CardSide, angle: Double) -> some View {
-        let isShown = angle == 0
-        return CardFace(side: side, configuration: configuration)
+        CardFace(side: side, configuration: configuration)
             .modifier(FlipEffect(angle: angle, reduceMotion: reduceMotion))
+            // The whole card, not only its text and buttons.
+            .contentShape(.rect(cornerRadius: configuration.cornerRadius))
             // A tap gesture rather than a Button, because a face contains its own audio buttons.
             .onTapGesture { isFlipped.toggle() }
-            .allowsHitTesting(isShown)
-            .accessibilityAddTraits(.isButton)
-            .accessibilityHint("Flips the card")
-            .accessibilityAction { isFlipped.toggle() }
-            // Last, so later accessibility modifiers can't expose the hidden face.
-            .accessibilityHidden(!isShown)
+            .allowsHitTesting(angle == 0)
     }
 }
 
@@ -89,9 +93,12 @@ private struct CardFace: View {
                     .foregroundStyle(.secondary)
             }
 
-            if !side.audioURLs.isEmpty || side.transcription != nil {
+            if !side.audioURLs.isEmpty || side.spokenText != nil || side.transcription != nil {
                 HStack {
                     ForEach(side.audioURLs, id: \.self) { AudioButton(url: $0) }
+                    if let spokenText = side.spokenText, let language = side.language {
+                        SpeechButton(text: spokenText, language: language)
+                    }
                     if let transcription = side.transcription {
                         Text(transcription)
                             .font(configuration.transcriptionFont)

@@ -22,7 +22,7 @@ final class PracticeModel {
 
     private(set) var phase = Phase.opening
     private(set) var current: CurrentCard?
-    private(set) var deckName = ""
+    private(set) var deckName: String
     private(set) var progress = (answered: 0, total: 0)
     /// A command is running; others wait.
     private(set) var isSaving = false
@@ -43,14 +43,18 @@ final class PracticeModel {
         case save, finish, recalculate
     }
 
-    init(library: Library, deckID: Deck.ID) {
+    init(library: Library, deckID: Deck.ID, deckName: String) {
         self.library = library
         self.deckID = deckID
+        self.deckName = deckName
     }
 
     /// The store first ends and projects sessions an earlier launch left open.
     func open() async {
-        guard phase == .opening || phase.isOpenFailure else { return }
+        switch phase {
+        case .opening, .openFailed: break
+        case .studying, .finishing, .finished: return
+        }
         phase = .opening
         do {
             var decks = library.decks.deck(deckID).makeAsyncIterator()
@@ -69,7 +73,9 @@ final class PracticeModel {
             update()
         } catch {
             phase = .openFailed(error.localizedDescription)
+            return
         }
+        await finishIfDone()
     }
 
     func answer(_ rating: Rating) async {
@@ -78,12 +84,14 @@ final class PracticeModel {
         // Kept before awaiting, so a retry resends exactly this event.
         self.run = run
         await save(event)
+        await finishIfDone()
     }
 
     func retry() async {
         guard !isSaving else { return }
         if let pending = run?.pending, phase == .studying {
             await save(pending)
+            await finishIfDone()
         } else if failedCommand == .finish {
             await finish()
         } else if failedCommand == .recalculate {
@@ -128,6 +136,12 @@ final class PracticeModel {
         }
     }
 
+    /// Nothing left to answer ends the session, so the summary needs no separate Finish.
+    private func finishIfDone() async {
+        guard let run, run.current == nil, run.pending == nil else { return }
+        await finish()
+    }
+
     private func fail(_ command: Command, _ message: String) {
         failedCommand = command
         failure = message
@@ -155,11 +169,5 @@ final class PracticeModel {
                 CurrentCard(id: id, note: $0, termLanguage: deck.termLanguage, meaningLanguage: deck.meaningLanguage)
             }
         }
-    }
-}
-
-extension PracticeModel.Phase {
-    var isOpenFailure: Bool {
-        if case .openFailed = self { true } else { false }
     }
 }

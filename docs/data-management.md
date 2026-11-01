@@ -5,6 +5,8 @@ How Lexcalli stores data on device, keeps it correct, and passes it to SwiftUI v
 
 The guidance comes from the project's installed skills (SwiftUI Expert, Swift Concurrency), from Apple, Android, and SQLite documentation, and from articles current as of October 2026; see [Sources](#sources).
 
+**Status.** Milestone 1 (study stored decks and keep progress) is built: the content and card review schema, the projector, practice sessions, media files, and migrations. Milestone 2 (Anki import) has archive unpacking only. Everything marked *planned* below is design, not code.
+
 
 ## Principles
 
@@ -21,15 +23,15 @@ The guidance comes from the project's installed skills (SwiftUI Expert, Swift Co
 | Transient view state | card flipped, sheet shown, menu open | `@State private` in the view that owns it | while the view is on screen |
 | Presentation configuration | sizes, radii, durations | `…Configuration` structs in the environment (`@Entry`) | code |
 | User preferences | appearance, serif text, show transcription | `UserDefaults` through `@AppStorage`, keys in `PreferenceKey` | device, survives updates |
-| Learning content | decks, notes, cards, topics | database | user data, never lost silently |
-| Learning history | card review events, exercise review events | database, append-only | user data |
+| Learning content | decks, notes, cards; topics (planned) | database | user data, never lost silently |
+| Learning history | card review events; exercise review events (planned) | database, append-only | user data |
 | Scheduling state | per-card FSRS memory state, due date | database, derived from card review events | user data, **recomputable** |
 | Media | images, audio | files in Application Support; the database stores references | user data |
 | Operations in flight | import staging, events not yet projected, future sync outbox | staging directory and database tables | until finished or recovered |
 | Re-creatable data | thumbnails, decoded waveforms | `Library/Caches` | may be purged by the system |
 | Secrets (future: sync accounts, API tokens) | — | Keychain | — |
 
-Only user preferences go to `UserDefaults`. Everything the learner creates or earns goes to the database or the media store, behind the core package.
+Only user preferences go to `UserDefaults`. Everything the learner creates or earns goes to the database or the media store, behind the store protocols in `LexcalliCore`. One exception exists today: the flag that the bundled starter deck was added to a library is kept in `UserDefaults` ([`StarterDeck.swift`](../Lexcalli/Library/StarterDeck.swift)).
 
 ## Identities
 
@@ -37,8 +39,8 @@ Every identifier needs a stated purpose. An entity doesn't get two ids "just in 
 
 | Identity | Purpose | Form |
 | --- | --- | --- |
-| Local entity id | relationships inside the database | the database's own key; integer or a UUID |
-| Anki identity | matching on re-import, writing back on export | note `guid` (Anki's import key) and notetype; card = note + template `ord` |
+| Local entity id | relationships inside the database | the domain UUID, stored as a blob; a card is its note id + direction |
+| Anki identity (planned, milestone 2) | matching on re-import, writing back on export | note `guid` (Anki's import key) and notetype; card = note + template `ord` |
 | Idempotency key | deduplicating retries, re-imports, and, later, sync | client-generated UUID on every card review event and exercise review event |
 | Content hash | media integrity and optional deduplication | SHA-256 of the file |
 
@@ -55,17 +57,21 @@ User activity is collected in practice sessions and recorded as events. Scheduli
 > One accepted scheduled review = one durable card review event. Every event is applied to the card's scheduling state exactly once.
 
 - **Recording a review appends one event.** The command validates the answer and inserts the event. That insert is the only write the study screen waits for; it doesn't compute FSRS or touch the card.
-- **Idempotent.** Each card review event has an `idempotency_key` column with a unique constraint. The key is a client-generated UUID, created once per answer and reused on retry, so a retry can't record a second review.
+- **Idempotent.** Each card review event is keyed by its `idempotency_key` (the table's primary key). The key is a client-generated UUID, created once per answer and reused on retry, so a retry can't record a second review.
   - A composite key such as `practice_session_id + card_id` assumes a card is answered once per session, which learning steps may break (see [Open questions](#open-questions)).
   - `practice_session_id` is still stored on each event as a plain attribute, for grouping and statistics.
 - **Scheduling state is a projection.** A projector runs unapplied events through FSRS in order and updates the card's scheduling state, like a materialized view refreshed in waves. It processes only cards with unapplied events.
   - *Checkpoint.* The projector records the last applied event per card, in the same write as the new state. An event is never applied twice, and after a crash the projector resumes from the checkpoint.
-  - *Triggers.* The end of a session, and new events delivered by sync or import. iOS can terminate a suspended app without notice, so opening a session first ends any session still marked open, which runs the projector for it. The checkpoint makes running at both points safe.
-  - *Rebuild.* An event that arrives out of order, from sync or import, is earlier than the card's checkpoint; a **Recalculate** button rebuilds that card from its events. The whole projection can also be dropped and rebuilt, for example after an FSRS parameter change or a projector bug.
-- **The study queue is prepared once, when a session opens,** from up-to-date scheduling state. Answers don't reorder it; their effect appears when the session ends.
-- **Exercise review events are separate.** They go to the exercise review log; card review events go to the card review log. An attempt that doesn't qualify as a scheduled review writes only an exercise review event; one that qualifies also writes a linked card review event. The rules for which attempts count are in [learning engine](learning-engine.md#relationship-to-fsrs).
+  - *Triggers.* The end of a session; later, new events delivered by sync or import. iOS can terminate a suspended app without notice, so opening a session first ends any session still marked open, which runs the projector for it. The checkpoint makes running at both points safe.
+  - *Rebuild.* An event that arrives out of order is earlier than the card's checkpoint; the projector reports the card instead of applying it, and a **Recalculate** button rebuilds that card from its baseline and events. Dropping and rebuilding the whole projection, for example after an FSRS parameter change, is planned.
+  - *Repair survives relaunch.* A card needs repair when it has more events from ended sessions (or imported history) than its checkpoint has applied. Append-only events plus the checkpoint's count make that derivable at any time, with no extra state table. Every `openSession`, fresh or retried, reports those cards again, and they stay out of every queue until Recalculate succeeds (`pendingRepairs` in [`DatabaseStore+Reviews.swift`](../LexcalliKit/Sources/LexcalliStore/DatabaseStore+Reviews.swift)).
+- **The study queue is prepared once, when a session opens,** from up-to-date scheduling state, with one card per note. Answers don't reorder it; their effect appears when the session ends.
+- **The code:** the [`ReviewStore`](../LexcalliKit/Sources/LexcalliCore/Stores.swift) protocol, its GRDB implementation in [`DatabaseStore+Reviews.swift`](../LexcalliKit/Sources/LexcalliStore/DatabaseStore+Reviews.swift), and the app's session model [`PracticeModel`](../Lexcalli/Practice/PracticeModel.swift), which keeps an answer's event before awaiting so a retry resends the same key.
+- **Exercise review events (planned) are separate.** They go to the exercise review log; card review events go to the card review log. An attempt that doesn't qualify as a scheduled review writes only an exercise review event; one that qualifies also writes a linked card review event. The rules for which attempts count are in [learning engine](learning-engine.md#relationship-to-fsrs).
 
 ### Import
+
+Import is milestone 2. Only step 1's unpacking and validation is built ([`LexcalliImport`](../LexcalliKit/Sources/LexcalliImport/)); the rest of this section is the planned design, and the app doesn't link `LexcalliImport` yet.
 
 SQLite transactions are atomic only inside the database. An import therefore follows a small recovery protocol:
 
@@ -93,16 +99,17 @@ Anki's own `.apkg` importer handles cases the protocol above must match:
 - **Revlog deduplication.** Only entries for imported cards are kept, and identical entries are skipped. Lexcalli derives the idempotency key of an imported review deterministically from the source entry, so re-importing the same file adds no history.
 - **An import report.** Anki reports notes as new, updated, duplicate, or conflicting. Lexcalli shows the same summary.
 
-Lexcalli also treats the archive as untrusted input: it rejects entry names with path components, caps the total uncompressed size, and decompresses zstd as a stream. Archive reading sits behind its own protocol: the first implementation uses the system libarchive, and ZIP and zstd libraries can replace it.
+Lexcalli also treats the archive as untrusted input, and this part is built: it rejects unsafe entry names, caps the archive, entry count, per-entry and total unpacked sizes (counting bytes actually written), and decompresses zstd as a stream with a bounded window ([`UnpackedPackage.swift`](../LexcalliKit/Sources/LexcalliImport/UnpackedPackage.swift)). ZIP reading sits behind the internal `ArchiveReader` protocol, implemented with [ZIPFoundation](https://github.com/weichsel/ZIPFoundation) 0.9.20 (MIT); `collection.anki21b` is decoded with libzstd from [zstd](https://github.com/facebook/zstd) 1.5.7 (used under its BSD-3-Clause option). Both are pinned exactly in [`Package.swift`](../LexcalliKit/Package.swift) and used by `LexcalliImport` only.
 
-### Deletion
+### Deletion (planned)
 
 Deleted content leaves a tombstone, which Anki calls a `grave`, so export and future sync can propagate the deletion. The projector skips events of deleted cards. Whether those events are kept is decided with export, following Anki's rule.
 
 ### Schema evolution and recovery
 
-- **Migrations are serialized and append-only.** They are checked into the repo, never edited after release, each runs in one transaction, and each has a fixture test that upgrades a real previous-version database.
+- **Migrations are serialized and append-only.** They are checked into the repo ([`Schema.swift`](../LexcalliKit/Sources/LexcalliStore/Schema.swift)), never edited after release, and each runs in one transaction. Today there is one migration; once a second ships, it gets a fixture test that upgrades a real previous-version database. Until then, tests upgrade with a synthetic next migration.
 - **Snapshot before migrating.** Don't copy the database file directly: in WAL mode, recent changes may still be in the `-wal` file, and copying a live database gives an inconsistent copy. Take a consistent snapshot with SQLite's online backup API (GRDB exposes it as `backup(to:)`) or with `VACUUM INTO`.
+- **Migrate a copy, then swap.** An existing database is never migrated in place: a backup copy is migrated and swapped in with one rename, so a failure or termination leaves the old or the fully migrated database. A database from a newer app version is refused ([`DatabaseStore+Open.swift`](../LexcalliKit/Sources/LexcalliStore/DatabaseStore+Open.swift)).
 - **A failed migration** keeps the snapshot, opens nothing in a half-migrated state, and tells the user, so they don't see an empty library.
 - **Prefer additive changes.** A destructive change (dropping or retyping a column) goes through copy, verify, and swap.
 - **Projection tables aren't migrated with data.** A schema change to scheduling state can drop those tables and rebuild them from events and baselines. Events and baselines always migrate in place.
@@ -112,7 +119,7 @@ Deleted content leaves a tombstone, which Anki calls a `grave`, so export and fu
 These are three different mechanisms; none replaces another:
 
 - **Device backup (iCloud or a computer).** It covers Application Support, including the database and media. Re-creatable files are excluded through `Library/Caches`.
-- **User-level export.** A `.colpkg`- or `.apkg`-compatible export is the learner's own recovery path and portability guarantee. Export runs the projector first, so the exported scheduling state includes every card review event.
+- **User-level export (planned).** A `.colpkg`- or `.apkg`-compatible export is the learner's own recovery path and portability guarantee. Export runs the projector first, so the exported scheduling state includes every card review event.
 - **Sync.** It is replication, not backup: it replicates deletions and corruptions too.
 
 For file protection, keep the system default (*complete until first user authentication*) for the database and media, so that future background work such as reminders or sync can open them. Stricter classes are unnecessary for this data.
@@ -139,15 +146,18 @@ These rules are already used in the codebase. They follow the SwiftUI Expert ski
 SwiftUI views (Lexcalli target, MainActor)
    │ commands ▼                    ▲ observed values
 Feature models (@Observable) — only where a feature coordinates operations or holds session state
-   │ async calls with Sendable values
-LexcalliCore — domain value types, FSRS policy, commands (append review, import), stores;
-   │           nonisolated, tested with `swift test`
-Persistence — database + media files
+   │ async calls with Sendable values, through `Library` (the stores and media library)
+LexcalliKit package — nonisolated, tested with `swift test`
+   ├─ LexcalliCore    domain value types, FSRS policy and projector, store protocols, media library
+   ├─ LexcalliStore   GRDB implementation of the store protocols, schema and migrations
+   └─ LexcalliImport  Anki package unpacking (milestone 2; not linked by the app yet)
+Persistence — SQLite database + media files
 ```
 
 - **Domain types stay `Sendable` value types.** `Deck` and `Note` already are.
-- **Use a feature model when it pays:** a practice session coordinating its queue, answers, and lifecycle, or an import with progress and cancellation. A simple screen (deck list, word list) reads an observed query directly into `@State` and sends commands to the store.
-- **Persistence is testable without SwiftUI**, as [the way](the-way.md#principles) requires: core tests run against an in-memory database.
+- **Use a feature model when it pays:** a practice session coordinating its queue, answers, and lifecycle ([`PracticeModel`](../Lexcalli/Practice/PracticeModel.swift)), or, later, an import with progress and cancellation. A simple screen reads an observed query directly into `@State`; [`DecksView`](../Lexcalli/Deck/DecksView.swift) does this through the [`observe`](../Lexcalli/Library/Observed.swift) modifier, which keeps loading and failure distinct from an empty result.
+- **The app composes the stores once.** [`Library`](../Lexcalli/Library/Library.swift) holds the `DeckStore`, `ReviewStore`, and `MediaLibrary`; only it and the sample seed import `LexcalliStore`, and the app never imports GRDB.
+- **Persistence is testable without SwiftUI**, as [the way](the-way.md#principles) requires: the store contract tests run against both `DatabaseStore` (in-memory SQLite) and a test-only `ReferenceStore`.
 
 ### Choose the property wrapper by ownership
 
@@ -169,80 +179,19 @@ Configuration            → @Environment(\.x) private var configuration
 - Use `@Binding var`, never `let x: Binding<T>`. A plain binding property isn't tracked, and that often breaks only in Release builds.
 - Prefer key-path bindings (`$model.name`) over `Binding(get:set:)` closures.
 
-### Examples
+### In the code
 
-A simple screen reads an observed projection directly:
+The code is the example; these docs don't keep copies of it:
 
-```swift
-struct DecksView: View {
-    @Environment(\.deckStore) private var store
-    @State private var decks: [Deck] = []
+- A simple screen observing a store: [`DecksView`](../Lexcalli/Deck/DecksView.swift) with [`Observed`](../Lexcalli/Library/Observed.swift).
+- A feature model owning a session's lifecycle and retry rule, following [Reviews](#reviews): [`PracticeModel`](../Lexcalli/Practice/PracticeModel.swift).
+- The store contracts both rely on: [`Stores.swift`](../LexcalliKit/Sources/LexcalliCore/Stores.swift).
 
-    var body: some View {
-        List(decks) { DeckRow(deck: $0) }
-            // Structured: cancelled with the view.
-            .task { for await decks in store.decks() { self.decks = decks } }
-    }
-}
-```
-
-A feature model coordinates a session and owns the retry rule; the lifecycle follows [Reviews](#reviews):
-
-```swift
-@Observable
-final class PracticeSession {  // MainActor by the app target's default isolation
-    private(set) var current: Card?
-    private(set) var failed: ReviewEvent?
-
-    @ObservationIgnored private let reviews: any ReviewStore
-    @ObservationIgnored private var queue: [Card] = []
-    @ObservationIgnored private let sessionID = UUID()
-
-    init(reviews: any ReviewStore) { self.reviews = reviews }
-
-    /// Opens the session: ends sessions left open by a terminated app, then prepares the queue once.
-    func start(deck: Deck.ID) async throws {
-        try await reviews.endUnfinishedSessions()
-        try await reviews.openSession(sessionID, deck: deck)
-        queue = try await reviews.dueCards(in: deck)
-        advance()
-    }
-
-    func rate(_ rating: Rating) async {
-        guard let card = current else { return }
-        await append(ReviewEvent(
-            idempotencyKey: UUID(), sessionID: sessionID,
-            cardID: card.id, rating: rating, answeredAt: .now))
-    }
-
-    /// Resends the same event, so a retry can't record a second review.
-    func retry() async {
-        if let failed { await append(failed) }
-    }
-
-    /// Normal end: marks the session ended and applies its events.
-    func finish() async throws {
-        try await reviews.endSession(sessionID)
-    }
-
-    private func append(_ event: ReviewEvent) async {
-        do {
-            try await reviews.append(event)
-            failed = nil
-            advance()
-        } catch {
-            failed = event
-        }
-    }
-
-    private func advance() {
-        current = queue.isEmpty ? nil : queue.removeFirst()
-    }
-}
-```
+Rules for feature models:
 
 - Models expose `private(set)` state and command methods.
-- Make frequently written property types `Equatable` so redundant writes don't invalidate views. Precompute derived values in `didSet` rather than in computed properties that read whole collections.
+- Make frequently written property types `Equatable` so redundant writes don't invalidate views.
+- Derive values with computed properties by default. Cache a derived value only when measurement shows the computation is costly, and update the cache wherever its source changes.
 - Inside an `@Observable` class, any property wrapper (`@AppStorage`, `@Query`, `@FetchAll`) needs `@ObservationIgnored`.
 - Use `.task` for observation and loading, not `Task {}` in `onAppear`. To observe an `@Observable` from non-view code, use `Observations { … }` (Swift 6.2+, iOS 26).
 
@@ -254,8 +203,9 @@ final class PracticeSession {  // MainActor by the app target's default isolatio
 
 ### Previews and samples
 
-- Previews get data through the same seams as the app: an in-memory store seeded from `Deck.samples`.
-- `Deck.samples` stays a fixture for previews and tests; it disappears from `RootView` once a real store exists.
+- Previews get data through the same seams as the app: [`SampleLibrary.preview`](../Lexcalli/Library/SampleLibrary.swift), an in-memory store seeded with the sample decks, whose media goes through a media library like imported media.
+- UI tests seed the same sample decks with `LEXCALLI_SEED_SAMPLES` and a fresh library per test with `LEXCALLI_LIBRARY`.
+- Otherwise a new library starts with the bundled [starter deck](../Lexcalli/Library/StarterDeck.swift), added once per library.
 
 ## Persistence engine
 
@@ -286,7 +236,7 @@ Core Data is left out: Lexcalli has no existing Core Data store to carry, and Co
 ### Assessment
 
 - **GRDB is the conservative starting point.** Its SQLite semantics (transactions, constraints, `ON CONFLICT`, the backup API) are part of domain correctness here, and the core keeps `Sendable` structs.
-- **GRDB stays behind store protocols.** LexcalliCore defines domain-shaped stores (deck, review, import), never generic CRUD, and doesn't import GRDB; a separate store target implements them. A shared contract test suite checks idempotent appends, atomic projection writes, observation, and migrations against every implementation, so SwiftData can replace GRDB if the experiment calls for it.
+- **GRDB stays behind store protocols.** `LexcalliCore` defines domain-shaped stores (`DeckStore`, `ReviewStore`; an import store is planned), never generic CRUD, and doesn't import GRDB; `LexcalliStore` implements them. A shared contract test suite checks idempotent appends, atomic projection writes, and observation against every implementation, so SwiftData can replace GRDB if the experiment calls for it; migrations and file durability are tested against `DatabaseStore` directly.
 - **SwiftData remains a legitimate comparison**, but not the default:
   - It needs `@Model` classes, which means either leaking them into the core or mapping them to structs.
   - With MainActor default isolation it needs `@Model nonisolated` and a `@ModelActor` created off the main thread.
@@ -302,16 +252,15 @@ The experiment below decides between GRDB and SwiftData with evidence, not featu
 - **Core:** nonisolated. Stores do their work off the main actor, through `@concurrent` async functions or the database library's queues, not `Task.detached`.
 - **Only `Sendable` values cross boundaries:** domain structs, commands, and identifiers.
 - **Writes are serialized:** a GRDB `DatabasePool` has one writer, and readers work on consistent snapshots.
-- **The projector** runs off the main actor as a cancellable task. Its checkpoint makes cancellation safe: the next trigger resumes where it stopped.
-- **Long work** (imports, media conversion) runs as a cancellable task that reports progress to a MainActor model and follows the [import protocol](#import).
+- **The projector** runs off the main actor, synchronously inside the store's write transaction that ends a session (or opens the next one), so a card's new state and its checkpoint commit together.
+- **Long work** runs cancellably off the main actor: `MediaLibrary.add` checks for cancellation between chunks. Imports (planned) will also report progress to a MainActor model and follow the [import protocol](#import).
 
 ## Media
 
-- Store files under `Application Support/Media/<hash-prefix>/<hash>.<ext>`: app-managed, not user-browsable, and backed up because they are user content.
-- The database stores a **relative** reference (hash, original filename, MIME type), never an absolute `URL`, because the container path can change between launches and restores. Resolve to a `URL` at the edge.
-  - Today `Note.imageURL` and `audioURLs` are absolute bundle URLs. That is fine for samples and should become references once persistence lands.
-- Keep media out of database blobs: files stream for audio playback and export straight back into an `.apkg`.
-- Unreferenced files are garbage-collected by the same recovery pass as imports.
+- Files live under `Application Support/Lexcalli/Media/<hash-prefix>/<hash>.<ext>`: app-managed, not user-browsable, and backed up because they are user content. They are written to `.staging` first and moved into place once hashed ([`MediaLibrary`](../LexcalliKit/Sources/LexcalliCore/MediaLibrary.swift)).
+- The database stores a **relative** `MediaReference` (hash and original filename; the type comes from the filename's extension), never an absolute `URL`, because the container path can change between launches and restores. `Note.image` and `Note.audio` hold these references; they resolve to a `URL` at the edge.
+- Keep media out of database blobs: files stream for audio playback and, later, export straight back into an `.apkg`.
+- Unreferenced files are to be garbage-collected by the same recovery pass as imports. `MediaLibrary.removeUnreferenced(keeping:)` exists; nothing calls it until that pass is built.
 
 ## Preferences
 
@@ -322,9 +271,9 @@ The experiment below decides between GRDB and SwiftData with evidence, not featu
 ## Testing
 
 - Use realistic fixtures, not generic library benchmarks. An imported collection must survive launch, study, termination, migration, re-import, and export without losing semantic content or review history.
-- **Core:** Swift Testing against an in-memory database, and real `.apkg` fixtures for import and export.
+- **Package (`just test`):** Swift Testing. Store contract tests run against `DatabaseStore` and `ReferenceStore`; durability tests cover reopening, WAL, migrations, and media files; import tests unpack `.apkg` fixtures generated with real Anki and reject hostile archives. Export fixtures come with export.
 - **Projector:** applying events incrementally and rebuilding from scratch must give the same state, including after a crash between events.
-- **App:** XCTest UI tests launched with a seeded store. Simulator checks come first; device checks cover performance and lifecycle (see [the way](the-way.md#verification-strategy)).
+- **App:** XCTest UI tests launched with a seeded store (`just ui-test`). The run fails unless all three required journeys actually ran and passed: settings navigation, answering the last card, and review history and due dates surviving termination. [`scripts/check_ui_tests.py`](../scripts/check_ui_tests.py) checks the result bundle. Simulator checks come first; device checks cover performance and lifecycle (see [the way](the-way.md#verification-strategy)).
 
 ## Anki file format notes
 
@@ -338,11 +287,11 @@ These notes were collected for the importer. The format is defined by Anki's sou
   - `cards`: `id`, `nid`, `did`, `ord` (template), `type` 0–3, `queue`, `due`, `ivl`, `factor`, `reps`, `lapses`. Its `data` JSON holds the FSRS memory state: stability, difficulty, and for FSRS-6 the per-card decay.
   - `revlog`: `id` (millisecond timestamp), `cid`, `ease` 1–4, `ivl`, `lastIvl`, `factor`, `time`, `type`.
   - Also `decks`, `deck_config`, `notetypes`, `fields`, `templates`, `tags`, `config`, and `graves` (deletions).
-- Rating (1–4) and card type (0–3) numbering already match `CompatibilityTests` in LexcalliCore.
+- Rating (1–4) and card type (0–3) numbering already match; `CompatibilityTests` in `LexcalliCoreTests` guards it.
 
 ## Next experiment
 
-This is a narrowly scoped persistence experiment rather than the full design. It follows the [first milestone](the-way.md#first-milestone): import a small Anki deck with media, review a card, persist the result, and reopen the app.
+This is a narrowly scoped persistence experiment rather than the full design. It follows the [milestones](the-way.md#first-milestone): milestone 1 covered the store, card-review-event-and-projection, and migration rows on GRDB (the previous-version fixture waits for a second migration); import with media, large collections, and the Anki round-trip remain for milestone 2 and later.
 
 | Experiment | Acceptance criterion |
 | --- | --- |
@@ -353,11 +302,10 @@ This is a narrowly scoped persistence experiment rather than the full design. It
 | Large collection | Import and query times, and UI responsiveness, are measured on a device |
 | Anki round-trip | Notes, identifiers, media, and supported review history come back semantically equivalent |
 
-Build it on GRDB first. Repeat only the store and card-review-event rows on SwiftData if GRDB shows real friction.
+It is built on GRDB. Repeat only the store and card-review-event rows on SwiftData if GRDB shows real friction.
 
 ## Open questions
 
-- Whether local entity ids are integers or UUIDs: decided by the experiment and the sync choice.
 - Our own backend versus iCloud sync.
 - Whether out-of-order events should trigger recalculation automatically instead of through the Recalculate button.
 - How learning steps work when the queue is prepared once and projected only when the session ends: a card answered *Again* can't come back in the same session.
@@ -379,8 +327,6 @@ These ideas are older than the current frameworks; the tooling changed more than
 | Modern SwiftUI | Observation, ownership-based state, async/await | native reactive UI with thin adaptation | copying persistent state into large observable objects |
 
 ## Sources
-
-The full list, including skipped sources and reasons, is in [operational/raw/data-managemeent-source-list.md](../operational/raw/data-managemeent-source-list.md).
 
 Skills (local, `.agents/skills/`):
 

@@ -2,6 +2,8 @@
 
 Build Lexcalli as a native SwiftUI application. Prefer simple, testable platform-native patterns over additional architectural frameworks.
 
+Use the [review checklist](review-checklist.md) when implementing or reviewing UI changes.
+
 ## Skills
 
 Use these two skills when available locally:
@@ -20,8 +22,8 @@ The upstream links are installation sources, not substitutes for local files. If
 ## Project layout
 
 - `Lexcalli.xcodeproj` — iOS app project. The `Lexcalli/` folder is a synchronized group: files added on disk are picked up by Xcode without editing the project file.
-- `Lexcalli/` — SwiftUI app target (views and app entry point only). Default actor isolation is `MainActor`; Swift 6 language mode; deployment target iOS 26.
-- `LexcalliCore/` — local Swift package with the UI-independent learning and content model. Not main-actor isolated; tested with Swift Testing via `just test`, no simulator needed.
+- `Lexcalli/` — SwiftUI app target: presentation and app composition, meaning views, presentation models such as `PracticeModel`, and wiring stores into a `Library`. Default actor isolation is `MainActor`; Swift 6 language mode; deployment target iOS 26.
+- `LexcalliKit/` — local Swift package with the app's UI-independent modules: `LexcalliCore` (learning and content model), `LexcalliStore` (GRDB stores), `LexcalliImport` (deck import). Not main-actor isolated; tested with Swift Testing via `just test`, no simulator needed.
 - Scheduling uses [swift-fsrs](https://github.com/open-spaced-repetition/swift-fsrs) pinned to a commit on `main` (FSRS-6; the latest tag is FSRS-5). Pass FSRS-6 weights explicitly — the library defaults to FSRS-5. Use `just fsrs-upstream` to check for a tagged release.
 
 ## UI conventions
@@ -32,7 +34,7 @@ The upstream links are installation sources, not substitutes for local files. If
 
 ## Commands
 
-Run `just` to list recipes. Before handing off a change run `just check` (lint, core tests, app build). The app build and `just run` need Xcode selected via `xcode-select`; with Command Line Tools only, `just check` fails at the app build step on purpose.
+Run `just` to list recipes. Before handing off a change run `just check` (lint, package tests, app build). The app build and `just run` need Xcode selected via `xcode-select`; with Command Line Tools only, `just check` fails at the app build step on purpose.
 
 `just run booted` installs into the simulator that is already running. To check a screen, take a screenshot with `xcrun simctl io booted screenshot <file>.png`. Xcode 27 replaces Simulator.app with DeviceHub.app.
 
@@ -42,4 +44,5 @@ Run `just` to list recipes. Before handing off a change run `just check` (lint, 
 - Use Apple Developer documentation as the primary API authority. For a deeper understanding of SwiftUI behavior, consider objc.io, Swift with Majid, SwiftLee, and Fatbobman; validate advice against SDK versions.
 - Keep state ownership explicit and UI updates actor-safe. Avoid unstructured tasks unless their lifecycle and cancellation are managed.
 - Avoid adding TCA or other frameworks without a demonstrated need.
+- Credit every library in `LexcalliKit/Package.swift` and every third-party asset the app ships in Settings → About (`Lexcalli/Settings/AboutView.swift`), with why it is used, its version, and its license. Bundle the license text as `Lexcalli/Settings/Licenses/<name>-LICENSE.txt` when the license requires it. Update the entry when a dependency is added, bumped, or removed.
 - Verify changes with an Xcode build and relevant tests; do not claim validation without running them.

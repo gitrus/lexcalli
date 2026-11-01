@@ -8,6 +8,8 @@ struct CardSide: Hashable {
     var transcription: String?
     var imageURL: URL?
     var audioURLs: [URL] = []
+    /// Read aloud with a system voice in `language`; set only when the side has no `audioURLs`.
+    var spokenText: String?
     /// Language of this side's text, so the system picks fitting fonts and line breaking (for example, for Japanese).
     /// It comes from the deck's `termLanguage` or `meaningLanguage`, not from each note.
     var language: Locale.Language?

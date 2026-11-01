@@ -17,9 +17,9 @@ This document describes **how we work**. Changes to these documents are committe
 
 ## From idea to merged change
 
-1. **Define the slice.** State the user-visible result, relevant boundaries, and a few observable acceptance criteria. Record open product questions before implementing assumptions. Use `operational/` directories to track tickets and changes. After brainstorming, use docs to preserve the most important decisions (agile architecture invariants).
+1. **Define the slice.** State the user-visible result, relevant boundaries, and a few observable acceptance criteria. Record open product questions before implementing assumptions. Tickets and working notes may live in `operational/`, which is local and git-ignored, so nothing in `docs/` links there. After brainstorming, use docs to preserve the most important decisions (agile architecture invariants).
 2. **Implement.** An agent developer changes the smallest coherent surface, including tests and fixtures. Keep business logic isolated from presentation. Keep it simple, vertically decoupled where possible, and complete.
-3. **Verify locally.** Run `just check` (lint, core tests, app build) and any other relevant tests; exercise changed screens in the simulator. Inspect actual behavior, screenshots, navigation, empty states, and errors where applicable. Report what ran and what could not run.
+3. **Verify locally.** Run `just check` (lint, `LexcalliKit` package tests, app build) and any other relevant tests; exercise changed screens in the simulator. Inspect actual behavior, screenshots, navigation, empty states, and errors where applicable. Report what ran and what could not run.
 4. **Review independently.** For meaningful changes, use a separate review pass (another agent or developer) focused on correctness, missed cases, unnecessary complexity, and compatibility. The author addresses findings; review output is not an automatic approval.
 5. **Human phase.** Acceptance testing with users.
 6. **Merge a coherent change.** Confirm acceptance criteria and risk-appropriate verification. Prefer small diffs and useful commit messages.
@@ -57,7 +57,12 @@ These requirements are specified in more detail by the product and learning-engi
 
 ## First milestone
 
-A device-installable build that can import a small Anki deck with media, study a card, record a scheduled review, and preserve history after relaunch. This is a **target**, not a claim that the build, CI, or TestFlight configuration already exists.
+The first target, a device-installable build that imports a small Anki deck with media, studies it, and preserves history after relaunch, is split in two:
+
+1. **Milestone 1: study stored decks and keep progress.** Built and verified locally: fixed flashcard queue, rating, one durable card review event per answer (including retries), FSRS-6 projection on finish and on the next open, media from app-managed files, and migrations that never leave a half-migrated or empty library. Decks come from the bundled starter deck, or the sample decks in UI tests. Remaining: a device run, a manual accessibility pass, a store-level termination test, and a previous-schema fixture once a second migration exists.
+2. **Milestone 2: import an Anki deck with media.** Only archive unpacking is built; mapping, the import store, media and progress import, the import UI, and recovery remain. See [import](data-management.md#import).
+
+Neither is a claim that CI or a TestFlight configuration exists.
 
 ## Deferred decisions
 

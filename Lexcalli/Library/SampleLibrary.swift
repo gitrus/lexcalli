@@ -1,5 +1,6 @@
 import Foundation
 import LexcalliCore
+import LexcalliStore
 
 /// Sample decks for previews and UI tests; their media goes through a media library like imported media.
 enum SampleLibrary {
@@ -69,7 +70,7 @@ enum SampleLibrary {
     static let preview: Library = {
         let media = MediaLibrary(root: URL.temporaryDirectory.appending(path: "Lexcalli-preview-media"))
         let decks = (try? SampleLibrary.decks(media: media)) ?? []
-        return Library(store: InMemoryStore(decks: decks), media: media)
+        return Library(store: try! DatabaseStore.inMemory(decks: decks), media: media)
     }()
 
     static var previewDecks: [Deck] {

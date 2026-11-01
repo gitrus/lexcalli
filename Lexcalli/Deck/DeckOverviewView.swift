@@ -40,7 +40,12 @@ struct DeckOverviewView: View {
         LabeledContent {
             Text(count, format: .number)
         } label: {
-            Label(title, systemImage: systemImage)
+            // Secondary, so the symbols don't read as tappable.
+            Label {
+                Text(title)
+            } icon: {
+                Image(systemName: systemImage).foregroundStyle(.secondary)
+            }
         }
     }
 }

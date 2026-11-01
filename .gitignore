@@ -65,3 +65,12 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
+
+# Python tooling
+__pycache__/
+.ruff_cache/
+
+# local
+tmp/
+operational/raw/
+operational/tasks/

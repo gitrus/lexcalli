@@ -1,12 +1,12 @@
 set shell := ["zsh", "-cu"]
 
-core := "LexcalliCore"
+core := "LexcalliKit"
 project := "Lexcalli.xcodeproj"
 scheme := "Lexcalli"
 bundle_id := "dev.gitrus.lexcalli"
 derived_data := ".build/xcode"
 device := "iPhone 17"
-swift_paths := "Lexcalli LexcalliUITests LexcalliCore/Sources LexcalliCore/Tests LexcalliCore/Package.swift"
+swift_paths := "Lexcalli LexcalliUITests LexcalliKit/Sources LexcalliKit/Tests LexcalliKit/Package.swift"
 
 # Command Line Tools ship Swift Testing outside the default search paths; with Xcode selected no flags are needed.
 
@@ -37,13 +37,13 @@ build: _require-xcode
 ui-test name=device: _require-xcode
     #!/usr/bin/env zsh
     set -euo pipefail
+    python3 -m unittest discover -s scripts -p test_check_ui_tests.py
     rm -rf {{ derived_data }}/ui-tests.xcresult
     # Two simulators can share a name; a UDID picks one.
     if [[ '{{ name }}' =~ '^[0-9A-Fa-f-]{36}$' ]]; then destination='id={{ name }}'; else destination='name={{ name }}'; fi
     xcodebuild -project {{ project }} -scheme {{ scheme }} -destination "platform=iOS Simulator,$destination" \
         -derivedDataPath {{ derived_data }} -resultBundlePath {{ derived_data }}/ui-tests.xcresult -quiet test
-    xcrun xcresulttool get test-results summary --path {{ derived_data }}/ui-tests.xcresult --compact \
-        | python3 -c "import json, sys; s = json.load(sys.stdin); p, f = s['passedTests'], s['failedTests']; print(f'UI tests: {p} passed, {f} failed'); sys.exit(0 if p >= 1 and f == 0 else 1)"
+    python3 scripts/check_ui_tests.py {{ derived_data }}/ui-tests.xcresult
 
 # Build, install, and launch the app in a simulator (requires Xcode); `just run booted` uses the one already running
 run name=device: build
@@ -80,7 +80,7 @@ open:
 resolve:
     swift package --package-path {{ core }} resolve
 
-# Show upstream swift-fsrs tags and main head to compare with the pin in LexcalliCore/Package.swift
+# Show upstream swift-fsrs tags and main head to compare with the pin in LexcalliKit/Package.swift
 fsrs-upstream:
     git ls-remote --tags --refs https://github.com/open-spaced-repetition/swift-fsrs.git | tail -3
     git ls-remote https://github.com/open-spaced-repetition/swift-fsrs.git HEAD
