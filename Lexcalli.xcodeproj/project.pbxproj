@@ -8,16 +8,33 @@
 
 /* Begin PBXBuildFile section */
 		A10000000000000000000010 /* LexcalliCore in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000020 /* LexcalliCore */; };
+		A10000000000000000000011 /* LexcalliStore in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000021 /* LexcalliStore */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A100000000000000000000F0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A100000000000000000000C0 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A10000000000000000000080;
+			remoteInfo = Lexcalli;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		A10000000000000000000030 /* Lexcalli.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Lexcalli.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000031 /* LexcalliUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LexcalliUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A10000000000000000000040 /* Lexcalli */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Lexcalli;
+			sourceTree = "<group>";
+		};
+		A10000000000000000000041 /* LexcalliUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = LexcalliUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -28,6 +45,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000000000000000000010 /* LexcalliCore in Frameworks */,
+				A10000000000000000000011 /* LexcalliStore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000051 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -38,6 +63,7 @@
 			isa = PBXGroup;
 			children = (
 				A10000000000000000000040 /* Lexcalli */,
+				A10000000000000000000041 /* LexcalliUITests */,
 				A10000000000000000000070 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -46,6 +72,7 @@
 			isa = PBXGroup;
 			children = (
 				A10000000000000000000030 /* Lexcalli.app */,
+				A10000000000000000000031 /* LexcalliUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -71,10 +98,32 @@
 			name = Lexcalli;
 			packageProductDependencies = (
 				A10000000000000000000020 /* LexcalliCore */,
+				A10000000000000000000021 /* LexcalliStore */,
 			);
 			productName = Lexcalli;
 			productReference = A10000000000000000000030 /* Lexcalli.app */;
 			productType = "com.apple.product-type.application";
+		};
+		A10000000000000000000081 /* LexcalliUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A100000000000000000000A5 /* Build configuration list for PBXNativeTarget "LexcalliUITests" */;
+			buildPhases = (
+				A10000000000000000000091 /* Sources */,
+				A10000000000000000000051 /* Frameworks */,
+				A100000000000000000000B1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A100000000000000000000F1 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A10000000000000000000041 /* LexcalliUITests */,
+			);
+			name = LexcalliUITests;
+			productName = LexcalliUITests;
+			productReference = A10000000000000000000031 /* LexcalliUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
 
@@ -88,6 +137,10 @@
 				TargetAttributes = {
 					A10000000000000000000080 = {
 						CreatedOnToolsVersion = 26.0;
+					};
+					A10000000000000000000081 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = A10000000000000000000080;
 					};
 				};
 			};
@@ -109,12 +162,20 @@
 			projectRoot = "";
 			targets = (
 				A10000000000000000000080 /* Lexcalli */,
+				A10000000000000000000081 /* LexcalliUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		A100000000000000000000B0 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A100000000000000000000B1 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -131,7 +192,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000091 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A100000000000000000000F1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A10000000000000000000080 /* Lexcalli */;
+			targetProxy = A100000000000000000000F0 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A100000000000000000000D1 /* Debug */ = {
@@ -315,6 +391,38 @@
 			};
 			name = Release;
 		};
+		A100000000000000000000A6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.gitrus.lexcalli.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Lexcalli;
+			};
+			name = Debug;
+		};
+		A100000000000000000000A7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.gitrus.lexcalli.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Lexcalli;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -336,6 +444,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		A100000000000000000000A5 /* Build configuration list for PBXNativeTarget "LexcalliUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A100000000000000000000A6 /* Debug */,
+				A100000000000000000000A7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -349,6 +466,10 @@
 		A10000000000000000000020 /* LexcalliCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = LexcalliCore;
+		};
+		A10000000000000000000021 /* LexcalliStore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LexcalliStore;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

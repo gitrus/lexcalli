@@ -28,10 +28,11 @@ struct FlashCard: View {
             // A tap gesture rather than a Button, because a face contains its own audio buttons.
             .onTapGesture { isFlipped.toggle() }
             .allowsHitTesting(isShown)
-            .accessibilityHidden(!isShown)
             .accessibilityAddTraits(.isButton)
             .accessibilityHint("Flips the card")
             .accessibilityAction { isFlipped.toggle() }
+            // Last, so later accessibility modifiers can't expose the hidden face.
+            .accessibilityHidden(!isShown)
     }
 }
 

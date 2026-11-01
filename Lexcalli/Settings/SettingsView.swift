@@ -14,23 +14,16 @@ struct SettingsView: View {
         }
         .labelStyle(.glassIcon)
         .navigationTitle("Settings")
-        .navigationDestination(for: SettingsPage.self) { page in
-            switch page {
-            case .cards: CardSettingsView()
-            case .appearance: AppearanceSettingsView()
-            case .about: AboutView()
-            }
-        }
     }
 
     private func link(to page: SettingsPage) -> some View {
-        NavigationLink(value: page) {
+        NavigationLink(value: AppRoute.settings(page)) {
             Label(page.title, systemImage: page.systemImage)
         }
     }
 }
 
-enum SettingsPage: Hashable {
+enum SettingsPage: Hashable, Codable {
     case cards
     case appearance
     case about
@@ -55,5 +48,6 @@ enum SettingsPage: Hashable {
 #Preview {
     NavigationStack {
         SettingsView()
+            .appRouteDestinations()
     }
 }
