@@ -3,6 +3,8 @@ import SwiftUI
 
 struct PracticeSessionView: View {
     let deckID: Deck.ID
+    /// Shown until the deck loads.
+    let name: String
 
     @Environment(\.library) private var library
     @Environment(\.dismiss) private var dismiss
@@ -21,20 +23,29 @@ struct PracticeSessionView: View {
         .safeAreaInset(edge: .bottom) {
             if let model { PracticeStatus(model: model) }
         }
-        .navigationTitle(model?.deckName ?? "")
+        .navigationTitle(model?.deckName ?? name)
         .navigationBarTitleDisplayMode(.inline)
-        // Leaving goes through Finish.
-        .navigationBarBackButtonHidden(model?.phase == .studying || model?.phase == .finishing)
+        // Leaving goes through Finish, which stays in the bar from the first frame.
+        .navigationBarBackButtonHidden()
         .toolbar {
-            if let model, model.phase == .studying || model.phase == .finishing {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Finish") { Task { await model.finish() } }
-                        .disabled(model.isSaving || model.phase == .finishing)
+            ToolbarItem(placement: .topBarTrailing) {
+                // Leaves at once, unless the summary has repairs to offer; it's otherwise for sessions that run
+                // out of cards.
+                Button("Finish", systemImage: "xmark") {
+                    Task {
+                        if let model, model.phase == .studying {
+                            await model.finish()
+                            guard case .finished = model.phase, model.needsRepair.isEmpty, model.failure == nil
+                            else { return }
+                        }
+                        dismiss()
+                    }
                 }
+                .disabled(model?.isSaving == true || model?.phase == .finishing)
             }
         }
         .task {
-            if model == nil { model = PracticeModel(library: library, deckID: deckID) }
+            if model == nil { model = PracticeModel(library: library, deckID: deckID, deckName: name) }
             await model?.open()
         }
     }
@@ -63,29 +74,35 @@ struct PracticeSessionView: View {
                         .id(card.id)
                 }
                 .padding()
+            } else if model.phase == .finishing {
+                ProgressView()
             } else {
-                ContentUnavailableView {
-                    Label(
-                        model.progress.total == 0 ? "Nothing Due" : "All Cards Answered",
-                        systemImage: "checkmark.circle")
-                } description: {
-                    Text(
-                        model.progress.total == 0
-                            ? "No cards in this deck are due now." : "Finish to schedule your next reviews.")
-                } actions: {
-                    Button("Finish") { Task { await model.finish() } }
-                        .buttonStyle(.glassProminent)
-                        .disabled(model.isSaving || model.phase == .finishing)
-                }
+                // Only after ending failed; the status bar offers Try Again.
+                ContentUnavailableView(
+                    "All Cards Answered", systemImage: "checkmark.circle",
+                    description: Text("Your answers are saved."))
             }
         case .finished(let reviewed):
             ContentUnavailableView {
-                Label("Session Complete", systemImage: "checkmark.seal")
+                if model.progress.total == 0 {
+                    Label("Nothing Due", systemImage: "checkmark.circle")
+                } else {
+                    Label("Session Complete", systemImage: "checkmark.seal")
+                }
             } description: {
-                Text("^[\(reviewed) card](inflect: true) reviewed.")
+                if model.progress.total == 0 {
+                    Text("No cards in this deck are due now.")
+                } else {
+                    Text("^[\(reviewed) card](inflect: true) reviewed.")
+                }
             } actions: {
-                Button("Done") { dismiss() }
-                    .buttonStyle(.glassProminent)
+                Button {
+                    dismiss()
+                } label: {
+                    Text("Done").frame(minWidth: configuration.doneMinWidth)
+                }
+                .buttonStyle(.glassProminent)
+                .controlSize(.extraLarge)
             }
         }
     }
@@ -124,11 +141,12 @@ private struct PracticeCardView: View {
     @Environment(\.practice) private var configuration
     @AppStorage(PreferenceKey.cardSerifText) private var serifText = false
     @AppStorage(PreferenceKey.cardShowsTranscription) private var showsTranscription = true
+    @AppStorage(PreferenceKey.cardSpeaksMissingAudio) private var speaksMissingAudio = true
 
     var body: some View {
         let sides = card.note.sides(
             card.id.direction, termLanguage: card.termLanguage, meaningLanguage: card.meaningLanguage,
-            media: library.media, showsTranscription: showsTranscription)
+            media: library.media, showsTranscription: showsTranscription, speaksMissingAudio: speaksMissingAudio)
         VStack(spacing: configuration.controlSpacing) {
             // Not rendered until revealed, so VoiceOver can't read it early.
             FlashCard(front: sides.front, back: isRevealed ? sides.back : CardSide(text: ""), isFlipped: $isFlipped)
@@ -174,7 +192,6 @@ private struct PracticeCardView: View {
                 }
             }
         }
-        .buttonStyle(.glass)
         .buttonBorderShape(.capsule)
         .controlSize(.large)
         // A pending answer is resent through Try Again, never replaced.
@@ -189,12 +206,20 @@ private struct PracticeCardView: View {
                 .lineLimit(1)
                 .fixedSize()
                 .frame(maxWidth: .infinity)
+                .foregroundStyle(rating.accentShare > 0.5 ? Color.white : Color.accentColor)
         }
+        // From white for Again to the accent for Easy.
+        .buttonStyle(.glass(.regular.tint(Color.white.mix(with: .accentColor, by: rating.accentShare))))
         .accessibilityHint(rating.hint)
     }
 }
 
 extension Rating {
+    /// 0 for Again through 1 for Easy.
+    var accentShare: Double {
+        Double(rawValue - Rating.again.rawValue) / Double(Rating.easy.rawValue - Rating.again.rawValue)
+    }
+
     var title: LocalizedStringKey {
         switch self {
         case .again: "Again"
@@ -216,7 +241,7 @@ extension Rating {
 
 #Preview {
     NavigationStack {
-        PracticeSessionView(deckID: SampleLibrary.previewDecks[0].id)
+        PracticeSessionView(deckID: SampleLibrary.previewDecks[0].id, name: SampleLibrary.previewDecks[0].name)
     }
     .environment(\.library, SampleLibrary.preview)
 }

@@ -9,10 +9,25 @@ An Anki-inspired language-learning app for mastering vocabulary, collocations, a
 
 ## Getting started
 
-- Requirements: Xcode 26.4+ (Swift 6.3+) and [just](https://github.com/casey/just).
-- `just open` opens the project; `just run` launches the app in a simulator (`just run booted` reuses the one already open); `just check` runs lint, core tests and the app build.
+- Requirements: Xcode 26.4+ (Swift 6.3+) and [just](https://github.com/casey/just). UI-test result checks also require Python 3.
+- `just open` opens the project; `just run` launches the app in a simulator (`just run booted` reuses the one already open); `just check` runs lint, package tests and the app build.
+
+## Tests
+
+| Suite | Framework | Covers | Run |
+|---|---|---|---|
+| `LexcalliKit/Tests/LexcalliCoreTests` | Swift Testing | Scheduling, projection, study queue, practice runs | `just test` |
+| `LexcalliKit/Tests/LexcalliStoreTests` | Swift Testing | Store contract, durability (reopen, WAL, migrations), media files | `just test` |
+| `LexcalliKit/Tests/LexcalliImportTests` | Swift Testing | Package unpacking against generated fixtures, hostile archives | `just test` |
+| `LexcalliUITests` | XCTest | Navigation, studying, and progress kept across app termination | `just ui-test [simulator name or UDID]` |
+
+- Package tests need no simulator; `just test --filter <name>` runs a subset.
+- Store contract tests run against both `DatabaseStore` (in-memory SQLite) and `ReferenceStore`, a simple in-memory implementation kept only in tests, so the contract describes behavior rather than GRDB details.
+- UI tests launch the app with `LEXCALLI_LIBRARY` (a fresh library per test) and `LEXCALLI_SEED_SAMPLES` (sample decks instead of the starter deck). The result gate requires settings navigation, last-card completion, and progress surviving termination to each run and pass.
+- `just check` runs lint, package tests and the app build before a commit; `just check-all` adds the UI tests. `just fmt` fixes formatting.
 
 ## Contributor guide
 
 - Review and install the skills listed in `.agents/AGENTS.md`.
-- Run `just skill-update` to update installed skills; review changes before committing.
+- Run `just skill-update` to update installed skills (requires Node.js/npm); review changes before committing.
+- Third-party libraries and assets are credited in the app under Settings → About, with version and license.

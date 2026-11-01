@@ -9,6 +9,8 @@ enum PreferenceKey {
     static let cardSerifText = "card.serifText"
     /// Whether cards show the pronunciation transcription; defaults to `true`.
     static let cardShowsTranscription = "card.showsTranscription"
+    /// Whether a word without recorded audio is read aloud by a system voice; defaults to `true`.
+    static let cardSpeaksMissingAudio = "card.speaksMissingAudio"
 }
 
 enum Appearance: String, CaseIterable, Identifiable {

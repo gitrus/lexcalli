@@ -17,11 +17,16 @@ nonisolated struct SideMenuConfiguration: Equatable {
     var iconSize: CGFloat = 40
     /// Largest factor the icon circle grows by with Dynamic Type, so long titles keep their room.
     var iconMaxScale: CGFloat = 1.5
+    /// The Settings button at the bottom of the panel, at the default text size.
+    var settingsIconSize: CGFloat = 56
+    var settingsSymbolFont: Font = .title2
     /// Gap between the panel and the trailing screen edge at accessibility text sizes, where the panel widens to fit
     /// its rows; the scrim stays visible there, so tapping it still closes the menu.
     var accessibilityTrailingInset: CGFloat = 48
     var scrimOpacity: Double = 0.3
-    var animation: Animation = .snappy
+    var animation: Animation = .snappy(duration: 0.38)
+    /// Crossfade between sections chosen in the menu.
+    var sectionAnimation: Animation = .easeInOut(duration: 0.25)
     /// Crossfade used instead of the slide when Reduce Motion is on.
     var reduceMotionDuration: TimeInterval = 0.2
     /// Drag distance before the swipe-to-close gesture starts tracking.

@@ -7,8 +7,8 @@ struct PracticeView: View {
 
     var body: some View {
         List(decks.value ?? []) { deck in
-            NavigationLink(value: AppRoute.practice(deck: deck.id)) {
-                Label(deck.name, systemImage: "rectangle.stack")
+            NavigationLink(value: AppRoute.practice(deck: deck.id, name: deck.name)) {
+                DeckRow(progressOf: deck)
             }
         }
         .overlay {

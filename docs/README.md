@@ -4,6 +4,8 @@ This directory contains decisions and notes related to the project.
 
 ## Contents
 
+- [Review checklist](../.agents/review-checklist.md) — what not to forget about navigation, async work, recovery, data access, accessibility, and behavioral verification.
+
 - [Glossary](glossary.md) — shared terms and their Anki equivalents.
 - [Product](product.md) — purpose, intended users, required capabilities, product boundaries, and open questions.
 - [Data layering](data-layering.md) — Anki-data-format compatible foundations, Lexcalli extensions, data ownership, and application/backend requirements.

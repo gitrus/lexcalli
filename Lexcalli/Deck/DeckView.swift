@@ -3,6 +3,8 @@ import SwiftUI
 
 struct DeckView: View {
     let deckID: Deck.ID
+    /// Shown until the deck loads.
+    let name: String
 
     @Environment(\.library) private var library
     @State private var deck: Observed<Deck?> = .loading
@@ -33,7 +35,9 @@ struct DeckView: View {
                 EmptyView()
             }
         }
-        .navigationTitle(deck?.name ?? "")
+        .navigationTitle(deck?.name ?? name)
+        // Inline like the other pushed screens, so the name arriving after load doesn't resize the header.
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu("Deck Options", systemImage: "ellipsis") {
@@ -97,7 +101,7 @@ private struct NoteRow: View {
 
 #Preview {
     NavigationStack {
-        DeckView(deckID: SampleLibrary.previewDecks[0].id)
+        DeckView(deckID: SampleLibrary.previewDecks[0].id, name: SampleLibrary.previewDecks[0].name)
             .appRouteDestinations()
     }
     .environment(\.library, SampleLibrary.preview)

@@ -7,8 +7,8 @@ struct DecksView: View {
 
     var body: some View {
         List(decks.value ?? []) { deck in
-            NavigationLink(value: AppRoute.deck(deck.id)) {
-                DeckRow(deck: deck)
+            NavigationLink(value: AppRoute.deck(deck.id, name: deck.name)) {
+                DeckRow(languagesOf: deck)
             }
         }
         .overlay {
@@ -32,26 +32,6 @@ struct DecksView: View {
     }
 }
 
-private struct DeckRow: View {
-    let deck: DeckSummary
-
-    @Environment(\.locale) private var locale
-    @Environment(\.deckList) private var configuration
-
-    var body: some View {
-        let languages = (locale.name(of: deck.termLanguage), locale.name(of: deck.meaningLanguage))
-        VStack(alignment: .leading) {
-            Text(deck.name)
-                .font(configuration.rowTitleFont)
-            Text("\(languages.0) → \(languages.1)")
-                .font(configuration.rowSubtitleFont)
-                .foregroundStyle(.secondary)
-                .accessibilityLabel("\(languages.0) to \(languages.1)")
-        }
-        .badge(deck.noteCount)
-    }
-}
-
 #Preview {
     NavigationStack {
         DecksView()
@@ -64,5 +44,5 @@ private struct DeckRow: View {
     NavigationStack {
         DecksView()
     }
-    .environment(\.library, Library(store: InMemoryStore(), media: SampleLibrary.preview.media))
+    .environment(\.library, .unavailable)
 }

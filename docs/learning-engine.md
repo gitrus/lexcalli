@@ -32,7 +32,7 @@ These are intended interaction types, not promises that each provides an equival
 
 Draft for the first builds; details may change once the exercises are tried.
 
-Flashcards affect scheduling now. Choose-one and writing record exercise review events only; how they will affect scheduling is decided later (see [Open questions](#open-questions)).
+Only flashcards are built; they affect scheduling. Choose-one and writing are planned: they will record exercise review events only, and how they affect scheduling is decided later (see [Open questions](#open-questions)). Nothing in this section beyond flashcards exists in code yet.
 
 ### Choose-one
 
@@ -61,14 +61,14 @@ One exercise may reference many cards; each reference has a role. Correct and in
 
 ## Review logs
 
-Card and exercise history use [two separate review logs](data-layering.md#review-logs). When an exercise contributes to a card review, link the corresponding log entries according to the exercise type's review rules. Not every exercise attempt produces a card review.
+Card and exercise history use [two separate review logs](data-layering.md#review-logs). Only the card review log exists today. When an exercise contributes to a card review, link the corresponding log entries according to the exercise type's review rules. Not every exercise attempt produces a card review.
 
 ## Relationship to FSRS
 
 - Each card has its own Anki-compatible scheduling state. An explicit scheduled card review updates that state using FSRS.
 - Card review events in the card review log are the authoritative scheduling history. Each card's scheduling state must stay consistent with them; how it is kept is defined in [data management](data-management.md#reviews).
 - The logic for counting reviews for exercises should be part of the exercise type declaration. The rule must specify the assessed card(s), rating, and treatment of hints and retries.
-- Scheduling uses FSRS-6 through the [swift-fsrs](https://github.com/open-spaced-repetition/swift-fsrs) package rather than our own implementation. Rating (1–4) and card state (0–3) values keep Anki's numbering; compatibility tests guard this.
+- Scheduling uses FSRS-6 through the [swift-fsrs](https://github.com/open-spaced-repetition/swift-fsrs) package rather than our own implementation. The package is pinned to a commit on `main`, because its latest tag is FSRS-5, and the FSRS-6 weights are passed explicitly ([`SchedulerDefaults.swift`](../LexcalliKit/Sources/LexcalliCore/SchedulerDefaults.swift)). Rating (1–4) and card state (0–3) values keep Anki's numbering; compatibility tests guard this.
 
 
 ## Deliberately avoided

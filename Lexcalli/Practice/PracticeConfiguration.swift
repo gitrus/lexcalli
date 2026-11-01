@@ -6,6 +6,7 @@ nonisolated struct PracticeConfiguration: Equatable {
     var controlSpacing: CGFloat = 12
     var progressFont: Font = .subheadline
     var failureFont: Font = .footnote
+    var doneMinWidth: CGFloat = 160
 }
 
 extension EnvironmentValues {
