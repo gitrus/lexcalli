@@ -12,6 +12,14 @@ public enum ExercisePrompt: Hashable, Sendable {
     case writing(WritingPrompt)
     case pickOne(PickOnePrompt)
 
+    public var cardID: Card.ID {
+        switch self {
+        case .flashcard(let card): card
+        case .writing(let prompt): prompt.cardID
+        case .pickOne(let prompt): prompt.cardID
+        }
+    }
+
     public var kind: ExerciseKind {
         switch self {
         case .flashcard: .flashcard
@@ -53,8 +61,8 @@ extension WritingExercise: ExerciseStrategy {
     }
 
     public func evaluate(_ response: ExerciseResponse, for prompt: ExercisePrompt) -> ExerciseFeedback? {
-        guard case .writing(let text) = response, case .writing(let writing) = prompt, accepts(text) else { return nil }
-        return .writing(WritingComparison.compare(expected: writing.expectedAnswer, response: text))
+        guard prompt.kind == kind else { return nil }
+        return ExerciseAttempt(prompt: prompt, response: response)?.feedback
     }
 }
 
@@ -69,10 +77,8 @@ extension PickOneExercise: ExerciseStrategy {
     }
 
     public func evaluate(_ response: ExerciseResponse, for prompt: ExercisePrompt) -> ExerciseFeedback? {
-        guard case .pickOne(let selected) = response, case .pickOne(let choice) = prompt,
-            choice.options.contains(where: { $0.noteID == selected })
-        else { return nil }
-        return .pickOne(selected: selected, correct: choice.cardID.noteID)
+        guard prompt.kind == kind else { return nil }
+        return ExerciseAttempt(prompt: prompt, response: response)?.feedback
     }
 }
 
@@ -98,9 +104,10 @@ public struct FlashcardExercise: ExerciseStrategy {
 public struct ExerciseEngine: Sendable {
     private let strategies: [any ExerciseStrategy]
 
+    /// Callers list eligible kinds explicitly; seeded randomness is the only selection policy.
     public init(strategies: [any ExerciseStrategy]) {
-        var kinds: Set<ExerciseKind> = [.flashcard]
-        self.strategies = [FlashcardExercise()] + strategies.filter { kinds.insert($0.kind).inserted }
+        var kinds = Set<ExerciseKind>()
+        self.strategies = strategies.filter { kinds.insert($0.kind).inserted }
     }
 
     public func generate<R: RandomNumberGenerator>(
@@ -108,7 +115,7 @@ public struct ExerciseEngine: Sendable {
     ) -> ExercisePrompt {
         let eligible = strategies.compactMap { strategy in
             guard let prompt = strategy.generate(card: card, notes: notes, using: &random),
-                prompt.kind == strategy.kind
+                prompt.kind == strategy.kind, prompt.cardID.noteID == card.noteID
             else { return nil as ExercisePrompt? }
             return prompt
         }
@@ -116,6 +123,10 @@ public struct ExerciseEngine: Sendable {
     }
 
     public func evaluate(_ response: ExerciseResponse, for prompt: ExercisePrompt) -> ExerciseFeedback? {
-        strategies.first { $0.kind == prompt.kind }?.evaluate(response, for: prompt)
+        if let strategy = strategies.first(where: { $0.kind == prompt.kind }) {
+            return strategy.evaluate(response, for: prompt)
+        }
+        // A safety fallback is still a fully usable flashcard, even with a narrowed fixture strategy list.
+        return prompt.kind == .flashcard ? FlashcardExercise().evaluate(response, for: prompt) : nil
     }
 }

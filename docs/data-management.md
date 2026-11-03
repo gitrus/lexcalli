@@ -24,7 +24,7 @@ The guidance comes from the project's installed skills (SwiftUI Expert, Swift Co
 | Presentation configuration | sizes, radii, durations | `…Configuration` structs in the environment (`@Entry`) | code |
 | User preferences | appearance, serif text, show transcription | `UserDefaults` through `@AppStorage`, keys in `PreferenceKey` | device, survives updates |
 | Learning content | decks, notes, cards; topics (planned) | database | user data, never lost silently |
-| Learning history | card review events; exercise review events (planned) | database, append-only | user data |
+| Learning history | card review events; exercise review events | database, append-only | user data |
 | Scheduling state | per-card FSRS memory state, due date | database, derived from card review events | user data, **recomputable** |
 | Media | images, audio | files in Application Support; the database stores references | user data |
 | Operations in flight | import staging, events not yet projected, future sync outbox | staging directory and database tables | until finished or recovered |
@@ -67,7 +67,8 @@ User activity is collected in practice sessions and recorded as events. Scheduli
   - *Repair survives relaunch.* A card needs repair when it has more events from ended sessions (or imported history) than its checkpoint has applied. Append-only events plus the checkpoint's count make that derivable at any time, with no extra state table. Every `openSession`, fresh or retried, reports those cards again, and they stay out of every queue until Recalculate succeeds (`pendingRepairs` in [`DatabaseStore+Reviews.swift`](../LexcalliKit/Sources/LexcalliStore/DatabaseStore+Reviews.swift)).
 - **The study queue is prepared once, when a session opens,** from up-to-date scheduling state, with one card per note. Answers don't reorder it; their effect appears when the session ends.
 - **The code:** the [`ReviewStore`](../LexcalliKit/Sources/LexcalliCore/Stores.swift) protocol, its GRDB implementation in [`DatabaseStore+Reviews.swift`](../LexcalliKit/Sources/LexcalliStore/DatabaseStore+Reviews.swift), and the app's session model [`PracticeModel`](../Lexcalli/Practice/PracticeModel.swift), which keeps an answer's event before awaiting so a retry resends the same key.
-- **Exercise review events (planned) are separate.** They go to the exercise review log; card review events go to the card review log. An attempt that doesn't qualify as a scheduled review writes only an exercise review event; one that qualifies also writes a linked card review event. The rules for which attempts count are in [learning engine](learning-engine.md#relationship-to-fsrs).
+- **Exercise review events are separate.** Writing and Pick-one attempts append immutable snapshots of what was shown and confirmed, so content edits cannot rewrite history. Retries acknowledge the original write, never replace it. These attempts temporarily do not write card events or update FSRS; future scheduling credit requires explicit rules in [learning engine](learning-engine.md#relationship-to-fsrs).
+- **Session modes and availability.** Mixed eligibility comes from saved card history, not a preference or projected study count. A retry belongs to the original mode and deck. Both logs exclude answered notes from an open-session retry queue, while only card events participate in projection and repair. Schema upgrades preserve old sessions as Flashcards through the existing snapshot/copy/swap guarantees.
 
 ### Import
 

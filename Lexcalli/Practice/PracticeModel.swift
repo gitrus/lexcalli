@@ -21,9 +21,25 @@ final class PracticeModel {
     }
 
     private(set) var phase = Phase.opening
-    private(set) var current: CurrentCard?
+    var current: CurrentCard? {
+        guard let prompt = run?.currentPrompt, let deck,
+            let note = deck.notes.first(where: { $0.id == prompt.cardID.noteID })
+        else { return nil }
+        return CurrentCard(
+            id: prompt.cardID, note: note, termLanguage: deck.termLanguage, meaningLanguage: deck.meaningLanguage)
+    }
+    var currentPrompt: ExercisePrompt? { run?.currentPrompt }
+    var feedback: ExerciseFeedback? { run?.feedback }
+    var hasPendingAnswer: Bool { run?.pending != nil }
+    var flashcardsReviewed: Int { run?.flashcardsReviewed ?? 0 }
+    var exercisesCompleted: Int { run?.exercisesCompleted ?? 0 }
+    let mode: PracticeMode
     private(set) var deckName: String
-    private(set) var progress = (answered: 0, total: 0)
+    var progress: (answered: Int, total: Int) { (run?.answeredCount ?? 0, run?.items.count ?? 0) }
+    var currentPosition: Int {
+        guard let run else { return 0 }
+        return run.position + (run.current == nil ? 0 : 1)
+    }
     /// A command is running; others wait.
     private(set) var isSaving = false
     /// `retry()` repeats the failed command.
@@ -33,9 +49,11 @@ final class PracticeModel {
 
     @ObservationIgnored private let library: Library
     @ObservationIgnored private let deckID: Deck.ID
+    @ObservationIgnored private let exerciseEngine: ExerciseEngine
+    @ObservationIgnored private var isOpening = false
     /// Reused when retrying a lost open.
     @ObservationIgnored private let sessionID = UUID()
-    @ObservationIgnored private var run: PracticeRun?
+    private var run: PracticeRun?
     @ObservationIgnored private var deck: Deck?
     @ObservationIgnored private var failedCommand: Command?
 
@@ -43,14 +61,24 @@ final class PracticeModel {
         case save, finish, recalculate
     }
 
-    init(library: Library, deckID: Deck.ID, deckName: String) {
+    init(
+        library: Library, deckID: Deck.ID, deckName: String, mode: PracticeMode = .flashcards,
+        exerciseEngine: ExerciseEngine? = nil
+    ) {
         self.library = library
         self.deckID = deckID
         self.deckName = deckName
+        self.mode = mode
+        var strategies: [any ExerciseStrategy] = [FlashcardExercise(), WritingExercise()]
+        if let choices = PickOneExercise() { strategies.append(choices) }
+        self.exerciseEngine = exerciseEngine ?? ExerciseEngine(strategies: strategies)
     }
 
     /// The store first ends and projects sessions an earlier launch left open.
     func open() async {
+        guard !isOpening else { return }
+        isOpening = true
+        defer { isOpening = false }
         switch phase {
         case .opening, .openFailed: break
         case .studying, .finishing, .finished: return
@@ -62,15 +90,15 @@ final class PracticeModel {
                 phase = .openFailed(String(localized: "This deck no longer exists."))
                 return
             }
-            let opened = try await library.reviews.openSession(sessionID, deck: deckID, at: .now)
+            let opened = try await library.reviews.openSession(sessionID, deck: deckID, mode: mode, at: .now)
+            let prepared = try await Self.prepareRun(opened, deck: deck, engine: exerciseEngine)
             // Another call may have opened it meanwhile.
             guard run == nil else { return }
             self.deck = deck
             deckName = deck.name
-            run = PracticeRun(session: opened.session, queue: opened.queue)
+            run = prepared
             needsRepair = opened.recovered.needsRecalculation + opened.recovered.failedCards
             phase = .studying
-            update()
         } catch {
             phase = .openFailed(error.localizedDescription)
             return
@@ -79,11 +107,32 @@ final class PracticeModel {
     }
 
     func answer(_ rating: Rating) async {
-        guard phase == .studying, !isSaving, var run else { return }
-        guard let event = run.answer(rating, at: .now) else { return }
+        await submit(.flashcard(rating))
+    }
+
+    func answerExercise(_ response: ExerciseResponse) async {
+        if case .flashcard = response { return }
+        await submit(response)
+    }
+
+    private func submit(_ response: ExerciseResponse) async {
+        guard phase == .studying, !isSaving, failure == nil, var run else { return }
+        let attempt: PendingAttempt?
+        switch response {
+        case .flashcard(let rating): attempt = run.answer(rating, at: .now).map(PendingAttempt.card)
+        case .writing, .pickOne: attempt = run.answerExercise(response, at: .now).map(PendingAttempt.exercise)
+        }
+        guard let attempt else { return }
         // Kept before awaiting, so a retry resends exactly this event.
         self.run = run
-        await save(event)
+        await save(attempt)
+        await finishIfDone()
+    }
+
+    func continueAfterFeedback() async {
+        guard phase == .studying, !isSaving, failure == nil,
+            run?.continueAfterFeedback() == true
+        else { return }
         await finishIfDone()
     }
 
@@ -112,7 +161,7 @@ final class PracticeModel {
             let report = try await library.reviews.endSession(sessionID, at: .now)
             needsRepair += report.needsRecalculation + report.failedCards
             failedCommand = nil
-            phase = .finished(reviewed: run?.answeredCount ?? 0)
+            phase = .finished(reviewed: run?.flashcardsReviewed ?? 0)
         } catch {
             // Stays open; the next open recovers it.
             phase = .studying
@@ -138,7 +187,7 @@ final class PracticeModel {
 
     /// Nothing left to answer ends the session, so the summary needs no separate Finish.
     private func finishIfDone() async {
-        guard let run, run.current == nil, run.pending == nil else { return }
+        guard let run, run.isComplete, run.pending == nil, run.feedback == nil else { return }
         await finish()
     }
 
@@ -147,27 +196,29 @@ final class PracticeModel {
         failure = message
     }
 
-    private func save(_ event: CardReviewEvent) async {
+    private func save(_ attempt: PendingAttempt) async {
         isSaving = true
         failure = nil
         defer { isSaving = false }
         do {
-            _ = try await library.reviews.record(event)
-            run?.acknowledge(event.idempotencyKey)
+            _ = try await library.reviews.record(attempt)
+            run?.acknowledge(attempt.id)
             failedCommand = nil
-            update()
         } catch {
             fail(.save, String(localized: "Couldn't save your answer. \(error.localizedDescription)"))
         }
     }
 
-    private func update() {
-        guard let run, let deck else { return }
-        progress = (run.answeredCount, run.queue.count)
-        current = run.current.flatMap { id in
-            deck.notes.first { $0.id == id.noteID }.map {
-                CurrentCard(id: id, note: $0, termLanguage: deck.termLanguage, meaningLanguage: deck.meaningLanguage)
-            }
+    @concurrent private static func prepareRun(
+        _ opened: OpenedSession, deck: Deck, engine: ExerciseEngine
+    ) async throws -> PracticeRun {
+        guard opened.session.mode == .mixed else {
+            return PracticeRun(session: opened.session, queue: opened.queue)
         }
+        var random = SystemRandomNumberGenerator()
+        let items = opened.queue.map { card in
+            PracticeItem(card: card, prompt: engine.generate(card: card, notes: deck.notes, using: &random))
+        }
+        return try PracticeRun(session: opened.session, items: items)
     }
 }

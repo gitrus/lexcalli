@@ -20,7 +20,7 @@ The [product requirements](product.md#required-capabilities) define the supporte
 | Type | Example evidence |
 | --- | --- |
 | Flashcard | Recall and self-rating |
-| Choose-one | Recognize the target among distractors |
+| Pick-one | Recognize the target among distractors |
 | Writing | Recall spelling/word form |
 | Listen and type or choose | Listening recognition and/or transcription |
 | Complete a sentence | Retrieve the appropriate form in context |
@@ -28,26 +28,25 @@ The [product requirements](product.md#required-capabilities) define the supporte
 
 These are intended interaction types, not promises that each provides an equivalent measure of knowledge.
 
-## First exercise types (draft)
+## First exercise types
 
-Draft for the first builds; details may change once the exercises are tried.
+Flashcards record card reviews and affect scheduling. Writing and Pick-one record separate exercise attempts; they temporarily do not affect FSRS. This keeps observable practice distinct from scheduling evidence until explicit exercise-to-card-review rules are defined (see [Open questions](#open-questions)).
 
-Only flashcards are built; they affect scheduling. Choose-one and writing are planned: they will record exercise review events only, and how they affect scheduling is decided later (see [Open questions](#open-questions)). Nothing in this section beyond flashcards exists in code yet.
+Mixed opens only after a deck has a durably saved card review, independently of projection or session completion. It uses the existing ordered due-note queue and freezes one uniformly selected eligible exercise per note. New exercise feedback remains until Continue or Finish; a failed save retains one unchanged pending event and blocks advancement.
 
-### Choose-one
+### Pick-one
 
 - Works in both directions: a forward card shows the term and offers meanings; a reverse card shows the meaning and offers terms.
-- Offers three options: the expected answer and two distractors from the same deck.
-- Distractors match the expected answer's length or word count, so a phrase isn't offered next to single words. Two options with the same meaning never appear together.
-- A deck needs at least three notes for this exercise.
-- The exercise review event records the options shown and the learner's pick.
+- Uses a configurable option count, default four, including exactly one expected answer and same-deck distractors. Insufficient distinct candidates make the type ineligible; the count is never reduced.
+- A replaceable ordered pipeline prefers matching word count, then similar length, relaxing to less-similar candidates when needed. Distinct normalized answer text is enforced independently of pipeline stages; this is not semantic synonym detection.
+- The exercise review event records ordered option snapshots, note references, target identity, and the confirmed selection. Selection alone does not reveal correctness.
 
 ### Writing
 
 - Uses the reverse card: shows the meaning, and the learner types the term. Terms can be phrases, for example *πώς σε λένε;*.
 - After the attempt, shows the differences between the typed text and the expected answer, like Anki's type-in-the-answer. There is no automatic grading.
 - Text is Unicode-normalized before comparison, so equivalent characters match (the Greek question mark `;` and the semicolon). Every difference is shown: accent-only and case-only differences in a lighter style than wrong letters, since both can matter (*πώς* versus *πως*, German *Haus* versus *haus*).
-- The exercise review event records the typed text.
+- The exercise review event retains the original, untrimmed typed text and prompt/expected-answer snapshots. Whitespace-only submissions are rejected. Unicode case folding also treats final/medial Greek sigma as a soft difference.
 
 ## Multi-card behavior
 
@@ -61,7 +60,7 @@ One exercise may reference many cards; each reference has a role. Correct and in
 
 ## Review logs
 
-Card and exercise history use [two separate review logs](data-layering.md#review-logs). Only the card review log exists today. When an exercise contributes to a card review, link the corresponding log entries according to the exercise type's review rules. Not every exercise attempt produces a card review.
+Card and exercise history use [two separate review logs](data-layering.md#review-logs). Both logs are durable. The two new exercise types append only exercise events; flashcards in either mode append normal card reviews. Exercise events are excluded from FSRS projection and repair calculations. Future links between logs require an explicit scheduling policy; not every exercise attempt produces a card review.
 
 ## Relationship to FSRS
 

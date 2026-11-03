@@ -66,7 +66,7 @@ struct PracticeSessionView: View {
         case .studying, .finishing:
             if let card = model.current {
                 VStack(spacing: configuration.controlSpacing) {
-                    Text("\(model.progress.answered + 1) of \(model.progress.total)")
+                    Text("\(model.currentPosition) of \(model.progress.total)")
                         .font(configuration.progressFont)
                         .foregroundStyle(.secondary)
                     // A new identity per card resets its reveal state.

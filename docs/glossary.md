@@ -17,18 +17,18 @@ Terms marked *(planned)* have no implementation yet.
 
 ## Practice
 
-- **Practice session:** one period of practice, stored with its status, *open* or *ended*. It groups the card review events, and later the exercise review events, recorded during it.
+- **Practice session:** one period of practice, stored with its mode and status, *open* or *ended*. It groups the card and exercise review events recorded during it.
 - **Study queue:** the cards a practice session will show, built once when it opens, one card per note.
-- **Exercise type** *(planned beyond flashcards)*: a kind of interaction: flashcard, choose-one, writing. Its rules (for example, three options with distractors from the same deck) are part of the type.
-- **Exercise** *(planned)*: an exercise type applied to one or more cards when shown, for example a choose-one exercise on a reverse card. It isn't stored ahead of time; its expected answer is one of its fields.
-- **Exercise attempt** *(planned)*: what the learner did with one exercise: answered, revealed the answer, skipped, or retried, including any hints used.
+- **Exercise type**: a kind of interaction: flashcard, Pick-one, writing. Its interaction and validation rules (for example, a configurable option count and same-deck distractors for Pick-one) belong to the type.
+- **Exercise**: an exercise type applied to one or more cards when shown, for example a Pick-one exercise on a reverse card. Its prompt and expected answer are frozen for the current practice item; confirming it stores an immutable attempt.
+- **Exercise attempt**: the learner's confirmed response to an exercise, retained with what was shown. Writing stores the raw text; Pick-one stores the selected option.
 - **Scheduled review:** a card review that contributes to future scheduling. Not every exercise attempt is a scheduled review.
 
 ## Scheduling and history
 
 - **Card review event:** the record of one scheduled review, in the card review log.
-- **Exercise review event** *(planned)*: the record of one exercise attempt, in the exercise review log.
-- **Card review log** and **exercise review log** *(planned)*: the two append-only logs; see [data layering](data-layering.md#review-logs).
+- **Exercise review event**: the immutable record of one exercise attempt, in the exercise review log.
+- **Card review log** and **exercise review log**: the two separate append-only logs; see [data layering](data-layering.md#review-logs).
 - **Rating:** the learner's grade for a card review, 1–4 (Again, Hard, Good, Easy).
 - **Card state:** new, learning, review, or relearning (0–3).
 - **Scheduling state:** a card's FSRS memory state and due date. It must stay consistent with the card's review events.
