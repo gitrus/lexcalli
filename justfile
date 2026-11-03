@@ -25,7 +25,8 @@ fmt:
 lint:
     swift format lint --strict --recursive --parallel {{ swift_paths }}
 
-# Run core tests (no simulator needed); extra args go to `swift test`, e.g. `just test --filter Compatibility`
+# Run core tests (no simulator needed); use one filter per invocation, e.g. `just test --filter Compatibility`.
+# Arguments are expanded by zsh; for a regex containing `|`, call `swift test` directly with a quoted filter.
 test *args:
     swift test --package-path {{ core }} {{ test_flags }} {{ args }}
 
