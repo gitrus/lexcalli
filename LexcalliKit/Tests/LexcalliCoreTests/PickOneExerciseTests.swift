@@ -96,12 +96,16 @@ struct PickOneExerciseTests {
 
     @Test func customStagesComposeInOrderAndMayFilter() throws {
         let first = DistractorStage { candidates, _ in candidates.filter { $0.answer != "Katze" } }
-        let second = DistractorStage { candidates, _ in Array(candidates.prefix(1)) }
+        let second = DistractorStage { candidates, _ in
+            candidates.contains { $0.answer == "Katze" } ? [] : Array(candidates.prefix(1))
+        }
         let exercise = try #require(PickOneExercise(optionCount: 2, stages: [first, second]))
         var random = Seeded()
         let card = Card.ID(noteID: notes[0].id, direction: .forward)
         let prompt = try #require(exercise.prompt(for: card, in: notes, using: &random))
         #expect(!prompt.options.contains { $0.answer == "Katze" })
+        let reversed = try #require(PickOneExercise(optionCount: 2, stages: [second, first]))
+        #expect(reversed.prompt(for: card, in: notes, using: &random) == nil)
         let drop = DistractorStage { _, _ in [] }
         let empty = try #require(PickOneExercise(optionCount: 2, stages: [drop]))
         #expect(empty.prompt(for: card, in: notes, using: &random) == nil)
