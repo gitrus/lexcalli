@@ -3,22 +3,26 @@ import GRDB
 import LexcalliCore
 
 extension DatabaseStore {
-    public func openSession(_ id: PracticeSession.ID, deck deckID: Deck.ID, at date: Date) async throws
-        -> OpenedSession
-    {
+    public func openSession(
+        _ id: PracticeSession.ID, deck deckID: Deck.ID, mode: PracticeMode, at date: Date
+    ) async throws -> OpenedSession {
         try await writer.write { [projector] db in
             guard try DeckRecord.exists(db, key: deckID) else { throw ReviewStoreError.unknownDeck(deckID) }
 
             if let existing = try Self.fetchSession(id, db) {
                 // A retried open after a lost acknowledgement: same session, minus notes already answered.
-                guard existing.status == .open, existing.deckID == deckID else {
-                    throw ReviewStoreError.sessionNotOpen(id)
+                guard existing.status == .open else { throw ReviewStoreError.sessionNotOpen(id) }
+                guard existing.deckID == deckID, existing.mode == mode else {
+                    throw ReviewStoreError.incompatibleSession(id)
                 }
                 return OpenedSession(
                     session: existing, queue: try Self.queue(for: existing, at: date, db),
                     recovered: ProjectionReport(needsRecalculation: try Self.pendingRepairs(db)))
             }
 
+            if mode == .mixed, try !Self.hasCardReviews(deck: deckID, db) {
+                throw ReviewStoreError.mixedLocked(deckID)
+            }
             var report = ProjectionReport()
             let open = try PracticeSessionRecord.filter { $0.endedAt == nil }
                 .order { [$0.openedAt, $0.id] }
@@ -30,7 +34,7 @@ extension DatabaseStore {
             let reported = Set(report.needsRecalculation + report.failedCards)
             report.needsRecalculation += try Self.pendingRepairs(db).filter { !reported.contains($0) }
 
-            let session = PracticeSession(id: id, deckID: deckID, openedAt: date)
+            let session = PracticeSession(id: id, deckID: deckID, mode: mode, openedAt: date)
             try PracticeSessionRecord(session).insert(db)
             return OpenedSession(session: session, queue: try Self.queue(for: session, at: date, db), recovered: report)
         }
@@ -38,6 +42,12 @@ extension DatabaseStore {
 
     public func record(_ event: CardReviewEvent) async throws -> RecordOutcome {
         try await writer.write { db in
+            if try Bool.fetchOne(
+                db, sql: "SELECT EXISTS (SELECT 1 FROM exercise_event WHERE idempotency_key = ?)",
+                arguments: [event.idempotencyKey]) == true
+            {
+                throw ReviewStoreError.idempotencyConflict(event.idempotencyKey)
+            }
             if let saved = try CardReviewEventRecord.fetchOne(db, key: event.idempotencyKey) {
                 guard try saved.event() == event else {
                     throw ReviewStoreError.idempotencyConflict(event.idempotencyKey)
@@ -148,14 +158,18 @@ extension DatabaseStore {
     static func queue(for session: PracticeSession, at date: Date, _ db: Database) throws -> [Card.ID] {
         let pending = Set(try pendingRepairs(db))
         // One card per note per session.
-        let answered = CardReviewEventRecord.filter { $0.practiceSessionID == session.id }
-            .select(Card.ID.Columns.noteID)
+        let answered = Set(
+            try UUID.fetchAll(
+                db,
+                sql: """
+                    SELECT note_id FROM card_review_event WHERE practice_session_id = ?
+                    UNION SELECT note_id FROM exercise_event WHERE practice_session_id = ?
+                    """, arguments: [session.id, session.id]))
         let candidates =
             try CardSchedulingRecord
             .joining(required: CardSchedulingRecord.note.filter { $0.deckID == session.deckID })
-            .filter(!answered.contains(Card.ID.Columns.noteID))
             .fetchAll(db)
-            .filter { !pending.contains($0.cardID) }
+            .filter { !pending.contains($0.cardID) && !answered.contains($0.cardID.noteID) }
             .map { QueueCandidate(cardID: $0.cardID, due: $0.scheduling.due) }
         return StudyQueue.build(from: candidates, now: date)
     }

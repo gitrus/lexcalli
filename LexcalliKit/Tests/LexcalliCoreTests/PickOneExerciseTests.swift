@@ -29,10 +29,27 @@ struct PickOneExerciseTests {
             #expect(prompt.question == (direction == .forward ? "dog" : "Hund"))
             #expect(prompt.expectedAnswer == (direction == .forward ? "Hund" : "dog"))
             #expect(prompt.options.count == 4)
+            #expect(prompt.isWellFormed)
             #expect(prompt.options.filter { $0.noteID == notes[0].id }.count == 1)
             #expect(prompt.options.filter { $0.answer == prompt.expectedAnswer }.count == 1)
             #expect(Set(prompt.options.map(\.answer)).count == 4)
         }
+    }
+
+    @Test func sharedValidityRejectsDuplicateAnswersMissingTargetAndBlankQuestion() {
+        let card = Card.ID(noteID: notes[0].id, direction: .forward)
+        let target = PickOneOption(noteID: card.noteID, answer: "Hund")
+        let duplicate = PickOneOption(noteID: notes[1].id, answer: " HUND ")
+        let other = PickOneOption(noteID: notes[1].id, answer: "Katze")
+        #expect(
+            !PickOnePrompt(cardID: card, question: "dog", expectedAnswer: "Hund", options: [target, duplicate])
+                .isWellFormed)
+        #expect(!PickOnePrompt(cardID: card, question: "dog", expectedAnswer: "Hund", options: [other]).isWellFormed)
+        #expect(
+            !PickOnePrompt(cardID: card, question: " \n", expectedAnswer: "Hund", options: [target, other]).isWellFormed
+        )
+        #expect(
+            PickOnePrompt(cardID: card, question: "dog", expectedAnswer: "Hund", options: [target, other]).isWellFormed)
     }
 
     @Test func configurableCountsAndInsufficientPool() throws {

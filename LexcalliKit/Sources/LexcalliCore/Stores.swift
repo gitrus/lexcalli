@@ -97,6 +97,19 @@ public enum RecordOutcome: Hashable, Sendable {
     case alreadyRecorded
 }
 
+/// One immutable write command, whichever log owns its event.
+public enum PendingAttempt: Hashable, Sendable {
+    case card(CardReviewEvent)
+    case exercise(ExerciseEvent)
+
+    public var id: UUID {
+        switch self {
+        case .card(let event): event.id
+        case .exercise(let event): event.id
+        }
+    }
+}
+
 public enum ReviewStoreError: Error, Hashable, Sendable {
     case unknownDeck(Deck.ID)
     case unknownSession(PracticeSession.ID)
@@ -106,13 +119,25 @@ public enum ReviewStoreError: Error, Hashable, Sendable {
     case unknownCard(Card.ID)
     case cardNotInSessionDeck(Card.ID)
     case idempotencyConflict(UUID)
+    case incompatibleSession(PracticeSession.ID)
+    case mixedLocked(Deck.ID)
+    case invalidExercise(UUID)
 }
 
 /// Recording only appends; ending a session, or opening the next one, projects events into scheduling.
 public protocol ReviewStore: Sendable {
     /// Ends and projects open sessions, then opens this one in one write. Reports pending repairs,
     /// including on retry, and excludes those cards from the queue until recalculated.
-    func openSession(_ id: PracticeSession.ID, deck: Deck.ID, at date: Date) async throws -> OpenedSession
+    func openSession(
+        _ id: PracticeSession.ID, deck: Deck.ID, mode: PracticeMode, at date: Date
+    ) async throws -> OpenedSession
+
+    /// Current durable review availability, followed by changes (independent of scheduling projection).
+    func hasCardReviews(deck: Deck.ID) -> AsyncThrowingStream<Bool, any Error>
+
+    func record(_ event: ExerciseEvent) async throws -> RecordOutcome
+    /// Durable history/verification read; currently exercised by shared store and relaunch tests.
+    func exerciseEvents(in session: PracticeSession.ID) async throws -> [ExerciseEvent]
 
     /// Returns `.alreadyRecorded` for a retried event.
     func record(_ event: CardReviewEvent) async throws -> RecordOutcome
@@ -125,4 +150,18 @@ public protocol ReviewStore: Sendable {
     func session(_ id: PracticeSession.ID) async throws -> PracticeSession?
     func projection(of card: Card.ID) async throws -> CardProjection?
     func reviewEvents(of card: Card.ID) async throws -> [CardReviewEvent]
+}
+
+extension ReviewStore {
+    public func record(_ attempt: PendingAttempt) async throws -> RecordOutcome {
+        switch attempt {
+        case .card(let event): try await record(event)
+        case .exercise(let event): try await record(event)
+        }
+    }
+
+    /// Existing callers continue to open Flashcards sessions.
+    public func openSession(_ id: PracticeSession.ID, deck: Deck.ID, at date: Date) async throws -> OpenedSession {
+        try await openSession(id, deck: deck, mode: .flashcards, at: date)
+    }
 }

@@ -23,6 +23,21 @@ public struct PickOnePrompt: Codable, Hashable, Sendable {
         self.expectedAnswer = expectedAnswer
         self.options = options
     }
+
+    /// Shared by generation and persistence, so a generated prompt cannot drift from write validation.
+    public var isWellFormed: Bool {
+        let answers = options.map { Self.normalized($0.answer) }
+        return !Self.normalized(question).isEmpty && options.count >= 2
+            && Set(answers).count == answers.count && !answers.contains("")
+            && Set(options.map(\.noteID)).count == options.count
+            && options.filter { $0.noteID == cardID.noteID && $0.answer == expectedAnswer }.count == 1
+    }
+
+    static func normalized(_ value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines)
+            .precomposedStringWithCanonicalMapping
+            .folding(options: [.caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+    }
 }
 
 /// The pipeline may reorder or filter candidates, but the exercise validates its output independently.
@@ -82,23 +97,25 @@ public struct PickOneExercise: Sendable {
         guard let targetNote = notes.first(where: { $0.id == cardID.noteID }) else { return nil }
         let target = candidate(targetNote, direction: cardID.direction)
         guard !isBlank(target.prompt), !isBlank(target.answer) else { return nil }
-        let targetPrompt = normalized(target.prompt)
+        let targetPrompt = PickOnePrompt.normalized(target.prompt)
         let valid = notes.filter { $0.id != target.noteID }.map { candidate($0, direction: cardID.direction) }
-            .filter { !isBlank($0.answer) && normalized($0.prompt) != targetPrompt }
+            .filter { !isBlank($0.answer) && PickOnePrompt.normalized($0.prompt) != targetPrompt }
         let allowed = Set(valid)
         var candidates = valid.shuffled(using: &random)
         for stage in stages { candidates = stage.apply(candidates, target: target) }
 
         // Even custom stages cannot inject another deck, duplicate options or the target.
-        var seen = Set([normalized(target.answer)])
+        var seen = Set([PickOnePrompt.normalized(target.answer)])
         let distractors = candidates.filter {
-            allowed.contains($0) && seen.insert(normalized($0.answer)).inserted
+            allowed.contains($0) && seen.insert(PickOnePrompt.normalized($0.answer)).inserted
         }
         guard distractors.count >= optionCount - 1 else { return nil }
         var options = distractors.prefix(optionCount - 1).map { PickOneOption(noteID: $0.noteID, answer: $0.answer) }
         options.append(PickOneOption(noteID: target.noteID, answer: target.answer))
         options.shuffle(using: &random)
-        return PickOnePrompt(cardID: cardID, question: target.prompt, expectedAnswer: target.answer, options: options)
+        let prompt = PickOnePrompt(
+            cardID: cardID, question: target.prompt, expectedAnswer: target.answer, options: options)
+        return prompt.isWellFormed ? prompt : nil
     }
 
     private func candidate(_ note: Note, direction: CardDirection) -> DistractorCandidate {
@@ -106,12 +123,6 @@ public struct PickOneExercise: Sendable {
         case .forward: DistractorCandidate(noteID: note.id, prompt: note.term, answer: note.meaning)
         case .reverse: DistractorCandidate(noteID: note.id, prompt: note.meaning, answer: note.term)
         }
-    }
-
-    private func normalized(_ value: String) -> String {
-        value.trimmingCharacters(in: .whitespacesAndNewlines)
-            .precomposedStringWithCanonicalMapping
-            .folding(options: [.caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))
     }
 
     private func isBlank(_ value: String) -> Bool {

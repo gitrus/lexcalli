@@ -1,5 +1,11 @@
 import Foundation
 
+/// Stored session modes; do not renumber.
+public enum PracticeMode: Int, Codable, Hashable, Sendable {
+    case flashcards = 0
+    case mixed = 1
+}
+
 /// A practice period on a deck. One left open by a terminated app is ended before the next opens.
 public struct PracticeSession: Identifiable, Hashable, Sendable {
     public enum Status: Int, Hashable, Sendable {
@@ -9,14 +15,18 @@ public struct PracticeSession: Identifiable, Hashable, Sendable {
 
     public let id: UUID
     public let deckID: Deck.ID
+    public let mode: PracticeMode
     public let openedAt: Date
     public var endedAt: Date?
 
     public var status: Status { endedAt == nil ? .open : .ended }
 
-    public init(id: UUID = UUID(), deckID: Deck.ID, openedAt: Date, endedAt: Date? = nil) {
+    public init(
+        id: UUID = UUID(), deckID: Deck.ID, mode: PracticeMode = .flashcards, openedAt: Date, endedAt: Date? = nil
+    ) {
         self.id = id
         self.deckID = deckID
+        self.mode = mode
         self.openedAt = Date(milliseconds: openedAt.milliseconds)
         self.endedAt = endedAt.map { Date(milliseconds: $0.milliseconds) }
     }

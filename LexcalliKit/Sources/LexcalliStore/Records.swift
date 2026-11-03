@@ -170,9 +170,10 @@ struct PracticeSessionRecord: Codable, FetchableRecord, PersistableRecord {
     var deckID: UUID
     var openedAt: Int64
     var endedAt: Int64?
+    var mode: PracticeMode
 
     enum CodingKeys: String, CodingKey {
-        case id
+        case id, mode
         case deckID = "deck_id"
         case openedAt = "opened_at"
         case endedAt = "ended_at"
@@ -189,12 +190,12 @@ extension PracticeSessionRecord {
     init(_ session: PracticeSession) {
         self.init(
             id: session.id, deckID: session.deckID, openedAt: session.openedAt.milliseconds,
-            endedAt: session.endedAt?.milliseconds)
+            endedAt: session.endedAt?.milliseconds, mode: session.mode)
     }
 
     var session: PracticeSession {
         PracticeSession(
-            id: id, deckID: deckID, openedAt: Date(milliseconds: openedAt),
+            id: id, deckID: deckID, mode: mode, openedAt: Date(milliseconds: openedAt),
             endedAt: endedAt.map(Date.init(milliseconds:)))
     }
 }
