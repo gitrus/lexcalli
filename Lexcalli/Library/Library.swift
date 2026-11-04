@@ -9,9 +9,9 @@ nonisolated struct Library: Sendable {
     let reviews: any ReviewStore
     let media: MediaLibrary
 
-    init(store: some DeckStore & ReviewStore, media: MediaLibrary) {
+    init(store: some DeckStore & ReviewStore, media: MediaLibrary, reviews: (any ReviewStore)? = nil) {
         decks = store
-        reviews = store
+        self.reviews = reviews ?? store
         self.media = media
     }
 
@@ -46,6 +46,17 @@ enum LibraryPhase {
         do {
             let store = try DatabaseStore.open(at: root.appending(path: "Lexcalli.sqlite"))
             let library = Library(store: store, media: MediaLibrary(root: root.appending(path: "Media")))
+            #if DEBUG
+                if let fixture = ExerciseUITestFixture.current {
+                    try await fixture.seedIfEmpty(library)
+                    if ProcessInfo.processInfo.environment["LEXCALLI_FAIL_EXERCISE_ACK_ONCE"] != nil {
+                        return .ready(
+                            Library(
+                                store: store, media: library.media, reviews: LostExerciseAcknowledgement(base: store)))
+                    }
+                    return .ready(library)
+                }
+            #endif
             if ProcessInfo.processInfo.environment["LEXCALLI_SEED_SAMPLES"] != nil {
                 try await SampleLibrary.seedIfEmpty(library)
             } else {

@@ -7,6 +7,10 @@ nonisolated struct PracticeConfiguration: Equatable {
     var progressFont: Font = .subheadline
     var failureFont: Font = .footnote
     var doneMinWidth: CGFloat = 160
+    var promptFont: Font = .title2
+    var answerFont: Font = .body
+    var feedbackLabelFont: Font = .headline
+    var exerciseControlSize: ControlSize = .large
 }
 
 extension EnvironmentValues {
