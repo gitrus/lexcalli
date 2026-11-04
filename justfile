@@ -43,7 +43,8 @@ ui-test name=device: _require-xcode
     # Two simulators can share a name; a UDID picks one.
     if [[ '{{ name }}' =~ '^[0-9A-Fa-f-]{36}$' ]]; then destination='id={{ name }}'; else destination='name={{ name }}'; fi
     xcodebuild -project {{ project }} -scheme {{ scheme }} -destination "platform=iOS Simulator,$destination" \
-        -derivedDataPath {{ derived_data }} -resultBundlePath {{ derived_data }}/ui-tests.xcresult -quiet test
+        -derivedDataPath {{ derived_data }} -resultBundlePath {{ derived_data }}/ui-tests.xcresult \
+        -parallel-testing-enabled NO -quiet test
     python3 scripts/check_ui_tests.py {{ derived_data }}/ui-tests.xcresult
 
 # Build, install, and launch the app in a simulator (requires Xcode); `just run booted` uses the one already running

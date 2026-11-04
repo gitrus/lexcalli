@@ -32,19 +32,23 @@ These are intended interaction types, not promises that each provides an equival
 
 Flashcards record card reviews and affect scheduling. Writing and Pick-one record separate exercise attempts; they temporarily do not affect FSRS. This keeps observable practice distinct from scheduling evidence until explicit exercise-to-card-review rules are defined (see [Open questions](#open-questions)).
 
-Mixed opens only after a deck has a durably saved card review, independently of projection or session completion. It uses the existing ordered due-note queue and freezes one uniformly selected eligible exercise per note. New exercise feedback remains until Continue or Finish; a failed save retains one unchanged pending event and blocks advancement.
+Tapping a deck starts Flashcards. A separate Mixed entry becomes available after its first durably saved card review, independently of projection or session completion; this availability survives relaunch. Mixed uses the existing ordered due-note queue and freezes one uniformly selected eligible exercise per note.
+
+Confirmation locks input before saving. Feedback appears only after acknowledgement and remains until Continue or Finish, including on the last prompt. A failed save keeps the original pending event and exposes Try Again; it never advances or reveals the answer. Mixed summaries distinguish completed exercises from flashcards reviewed and explain that exercise-only work can leave notes due.
 
 ### Pick-one
 
 - Works in both directions: a forward card shows the term and offers meanings; a reverse card shows the meaning and offers terms.
 - Uses a configurable option count, default four, including exactly one expected answer and same-deck distractors. Insufficient distinct candidates make the type ineligible; the count is never reduced.
 - A replaceable ordered pipeline prefers matching word count, then similar length, relaxing to less-similar candidates when needed. Distinct normalized answer text is enforced independently of pipeline stages; this is not semantic synonym detection.
-- The exercise review event records ordered option snapshots, note references, target identity, and the confirmed selection. Selection alone does not reveal correctness.
+- The label derives from the configured count (normally **Pick from 4**). Tapping an option only selects it; the learner can change selection until **Check Answer**. Confirmation saves before revealing selected/correct answers, identified by words and symbols rather than color alone.
+- The exercise review event records ordered option snapshots, note references, target identity, and the confirmed selection. Before confirmation, neither visible nor accessibility output identifies the correct option.
 
 ### Writing
 
 - Uses the reverse card: shows the meaning, and the learner types the term. Terms can be phrases, for example *πώς σε λένε;*.
-- After the attempt, shows the differences between the typed text and the expected answer, like Anki's type-in-the-answer. There is no automatic grading.
+- **Check Answer** and the keyboard's **Done** action share one confirmation path. Autocorrection and automatic capitalization are disabled. The expected term and answer-side media are absent until a successful save.
+- After confirmation, both original strings remain readable with case/accent changes italicized and other changes bold. VoiceOver gets a description of each changed span, including whitespace, with punctuation spoken. There is no automatic grading.
 - Text is Unicode-normalized before comparison, so equivalent characters match (the Greek question mark `;` and the semicolon). Every difference is shown: accent-only and case-only differences in a lighter style than wrong letters, since both can matter (*πώς* versus *πως*, German *Haus* versus *haus*).
 - The exercise review event retains the original, untrimmed typed text and prompt/expected-answer snapshots. Whitespace-only submissions are rejected. Unicode case folding also treats final/medial Greek sigma as a soft difference.
 

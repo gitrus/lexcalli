@@ -17,6 +17,7 @@ Terms marked *(planned)* have no implementation yet.
 
 ## Practice
 
+- **Practice mode:** Flashcards (the default) or Mixed (a choice among eligible Flashcards, writing and Pick-one exercises). Mixed is unlocked by saved flashcard history, not scheduling state.
 - **Practice session:** one period of practice, stored with its mode and status, *open* or *ended*. It groups the card and exercise review events recorded during it.
 - **Study queue:** the cards a practice session will show, built once when it opens, one card per note.
 - **Exercise type**: a kind of interaction: flashcard, Pick-one, writing. Its interaction and validation rules (for example, a configurable option count and same-deck distractors for Pick-one) belong to the type.
