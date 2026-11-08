@@ -29,6 +29,8 @@ final class PracticeModel {
             id: prompt.cardID, note: note, termLanguage: deck.termLanguage, meaningLanguage: deck.meaningLanguage)
     }
     var currentPrompt: ExercisePrompt? { run?.currentPrompt }
+    /// Writing asks for the term, regardless of the queued card's direction.
+    var writingLanguage: Locale.Language? { deck?.termLanguage }
     var feedback: ExerciseFeedback? { run?.feedback }
     var hasPendingAnswer: Bool { run?.pending != nil }
     var flashcardsReviewed: Int { run?.flashcardsReviewed ?? 0 }

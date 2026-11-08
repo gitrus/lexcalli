@@ -46,7 +46,9 @@ final class MixedExerciseUITests: XCTestCase {
         startMixed(app)
         let field = app.descendants(matching: .any)["writing.response"]
         XCTAssertTrue(field.waitForExistence(timeout: 10))
-        XCTAssertFalse(app.staticTexts["Expected answer"].exists)
+        XCTAssertTrue(app.staticTexts["Greek"].exists)
+        XCTAssertFalse(app.staticTexts["Expected"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["writing.expected"].exists)
         XCTAssertFalse(app.staticTexts["πώς σε λένε;"].exists)
         XCTAssertFalse(app.buttons["Show Answer"].exists)
         XCTAssertFalse(app.buttons["Check Answer"].isEnabled)
@@ -60,18 +62,31 @@ final class MixedExerciseUITests: XCTestCase {
         XCTAssertEqual(field.value as? String, "  wrong answer ")
         XCTAssertFalse(app.buttons["Menu"].exists)
         XCTAssertFalse(app.buttons["Continue"].exists)
-        XCTAssertFalse(app.staticTexts["Expected answer"].exists)
+        XCTAssertFalse(app.staticTexts["Expected"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["writing.expected"].exists)
         app.buttons["Try Again"].tap()
-        XCTAssertTrue(app.staticTexts["Expected answer"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Expected"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Actual"].exists)
+        let actual = app.descendants(matching: .any)["writing.actual"].firstMatch
+        let expected = app.descendants(matching: .any)["writing.expected"].firstMatch
+        XCTAssertTrue(actual.exists)
+        XCTAssertTrue(expected.exists)
+        XCTAssertEqual(actual.label, "wrong answer")
+        XCTAssertEqual(field.value as? String, "  wrong answer ")
+        XCTAssertLessThan(actual.frame.minX, app.staticTexts["Actual"].frame.minX)
+        XCTAssertLessThan(expected.frame.minX, app.staticTexts["Expected"].frame.minX)
         XCTAssertTrue(app.staticTexts["1 of 1"].exists)
         XCTAssertFalse(app.staticTexts["Session Complete"].exists)
-        let differences = app.descendants(matching: .any)["writing.differences"]
-        if !differences.exists { app.scrollViews.firstMatch.swipeUp() }
+        let differences = app.descendants(matching: .any)["writing.differences"].firstMatch
+        XCTAssertFalse(differences.exists)
+        screenshot("Writing feedback after lost acknowledgement", app)
+        app.buttons["writing.comparisonInfo"].tap()
         XCTAssertTrue(differences.waitForExistence(timeout: 10), app.debugDescription)
         XCTAssertTrue(differences.label.contains("Different text"), differences.label)
         XCTAssertTrue(differences.label.contains("Entered:"), differences.label)
         XCTAssertTrue(differences.label.contains("Expected:"), differences.label)
-        screenshot("Writing feedback after lost acknowledgement", app)
+        screenshot("Writing comparison information", app)
+        closeComparisonInfo(app)
         app.buttons["Continue"].tap()
         XCTAssertTrue(app.staticTexts["Session Complete"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["Exercises completed: 1"].exists, app.debugDescription)
@@ -83,7 +98,7 @@ final class MixedExerciseUITests: XCTestCase {
         // Exercise-only work remains due, and saved history still unlocks Mixed.
         XCTAssertTrue(app.staticTexts["1 of 1"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.descendants(matching: .any)["writing.response"].exists)
-        XCTAssertFalse(app.staticTexts["Expected answer"].exists)
+        XCTAssertFalse(app.staticTexts["Expected"].exists)
     }
 
     func testPickOneSelectionIsPrivateUntilConfirmationAndFinishSaves() {
@@ -156,16 +171,31 @@ final class MixedExerciseUITests: XCTestCase {
         check.tap()
         XCTAssertTrue(app.buttons["Continue"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["Continue"].isHittable)
-        let differences = app.descendants(matching: .any)["writing.differences"]
+        let info = app.buttons["writing.comparisonInfo"]
         for _ in 0..<4 {
-            if differences.exists { break }
+            if info.isHittable { break }
             app.scrollViews.firstMatch.swipeUp()
         }
+        XCTAssertTrue(info.isHittable)
+        screenshot("Writing at accessibility size", app)
+        let differences = app.descendants(matching: .any)["writing.differences"].firstMatch
+        XCTAssertFalse(differences.exists)
+        info.tap()
         XCTAssertTrue(differences.waitForExistence(timeout: 10), app.debugDescription)
         XCTAssertTrue(differences.label.contains("Case or accent difference"), differences.label)
         XCTAssertTrue(differences.label.contains("LATIN SMALL LETTER A"), differences.label)
         XCTAssertTrue(differences.label.contains("LATIN CAPITAL LETTER A"), differences.label)
-        screenshot("Writing at accessibility size", app)
+        screenshot("Comparison information at accessibility size", app)
+        closeComparisonInfo(app)
+        XCTAssertTrue(app.buttons["Continue"].isHittable)
+    }
+
+    private func closeComparisonInfo(_ app: XCUIApplication) {
+        let close = app.buttons["writing.comparisonInfo.close"]
+        XCTAssertTrue(close.waitForExistence(timeout: 5))
+        close.tap()
+        let dismissed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: close)
+        XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
     }
 
     private func launch(fixture: String? = nil, failOnce: Bool = false, largeText: Bool = false) -> XCUIApplication {
