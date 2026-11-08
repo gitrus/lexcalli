@@ -26,13 +26,14 @@ public struct WritingExercise: Sendable {
         )
     }
 
-    /// Reject blank input without changing the text that will be saved and compared.
+    /// Reject blank input without changing the text that will be saved.
     public func accepts(_ response: String) -> Bool {
         !response.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }
 
-/// An aligned comparison, not a correctness grade. Both sides retain the original text.
+/// An aligned comparison, not a correctness grade. Only leading/trailing whitespace is ignored;
+/// the prompt snapshot and saved answer retain their original text.
 public enum WritingComparison {
     public enum Kind: Hashable, Sendable {
         case match
@@ -53,8 +54,8 @@ public enum WritingComparison {
     }
 
     public static func compare(expected: String, response: String) -> [Part] {
-        let left = Array(expected).map(String.init)
-        let right = Array(response).map(String.init)
+        let left = Array(expected.trimmingCharacters(in: .whitespacesAndNewlines)).map(String.init)
+        let right = Array(response.trimmingCharacters(in: .whitespacesAndNewlines)).map(String.init)
         // Edit distance gives a stable alignment and retains insertions and deletions.
         var distance = Array(repeating: Array(repeating: 0, count: right.count + 1), count: left.count + 1)
         for row in 0...left.count { distance[row][0] = row * 2 }

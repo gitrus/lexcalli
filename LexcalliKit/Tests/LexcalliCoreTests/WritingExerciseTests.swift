@@ -61,11 +61,13 @@ struct WritingExerciseTests {
         #expect(deletion.contains { $0.expected == "b" && $0.response.isEmpty })
     }
 
-    @Test func responseMustNotBeBlankButRemainsUnchanged() {
+    @Test func responseMustNotBeBlankAndOuterWhitespaceIsIgnored() {
         let exercise = WritingExercise()
         #expect(!exercise.accepts(" \n"))
         #expect(exercise.accepts("  λέξη "))
         let result = WritingComparison.compare(expected: "λέξη", response: "  λέξη ")
-        #expect(result.map(\.response).joined() == "  λέξη ")
+        #expect(result.map(\.response).joined() == "λέξη")
+        #expect(result.allSatisfy { $0.kind == .match })
     }
+
 }
