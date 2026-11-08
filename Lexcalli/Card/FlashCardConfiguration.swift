@@ -5,7 +5,7 @@ import SwiftUI
 /// for example `.environment(\.flashCard.flipDuration, 0.8)`.
 nonisolated struct FlashCardConfiguration: Equatable {
     /// The card fills the space it gets, up to this height.
-    var maxHeight: CGFloat = 416
+    var maxHeight: CGFloat = 376
     var flipDuration: TimeInterval = 0.45
     var cornerRadius: CGFloat = 32
     var padding: CGFloat = 24
