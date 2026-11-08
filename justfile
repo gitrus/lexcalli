@@ -1,5 +1,7 @@
 set shell := ["zsh", "-cu"]
 
+# CI runs the lint, test, build and ui-test commands directly; update .github/workflows/swift.yml when they change.
+
 core := "LexcalliKit"
 project := "Lexcalli.xcodeproj"
 scheme := "Lexcalli"

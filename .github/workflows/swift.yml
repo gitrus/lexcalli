@@ -1,0 +1,63 @@
+name: Swift
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Match the local toolchain (Swift 6.4); Package.swift needs tools 6.3+ and the macOS 26 SDK.
+  DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+  DERIVED_DATA: .build/xcode
+
+# Steps mirror the justfile recipes; keep them in sync.
+jobs:
+  check:
+    # Preview image; macos-26 only ships Xcode 26.x (Swift 6.3).
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Toolchain
+        run: xcodebuild -version && swift --version
+      - name: Lint
+        run: >-
+          swift format lint --strict --recursive --parallel
+          Lexcalli LexcalliUITests LexcalliKit/Sources LexcalliKit/Tests LexcalliKit/Package.swift
+      - name: Package tests
+        run: swift test --package-path LexcalliKit
+      - name: Build app
+        run: >-
+          xcodebuild -project Lexcalli.xcodeproj -scheme Lexcalli
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath "$DERIVED_DATA" -quiet build
+
+  ui-tests:
+    needs: check
+    runs-on: xcode-27
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      # Unlike `just ui-test`, CI relies on the xcodebuild exit code without scripts/check_ui_tests.py.
+      - name: UI tests
+        run: >-
+          xcodebuild -project Lexcalli.xcodeproj -scheme Lexcalli
+          -destination 'platform=iOS Simulator,name=iPhone 17'
+          -derivedDataPath "$DERIVED_DATA" -resultBundlePath "$DERIVED_DATA/ui-tests.xcresult"
+          -parallel-testing-enabled NO -quiet test
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ui-tests.xcresult
+          path: .build/xcode/ui-tests.xcresult
+          if-no-files-found: ignore
