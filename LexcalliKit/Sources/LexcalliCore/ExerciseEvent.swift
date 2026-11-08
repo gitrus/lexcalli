@@ -1,7 +1,7 @@
 import Foundation
 
 /// The exact prompt and response shown at confirmation; no writing grade is fabricated.
-public enum ExerciseAttempt: Codable, Hashable, Sendable {
+public enum ExerciseAttempt: Hashable, Sendable {
     case writing(prompt: WritingPrompt, response: String)
     case pickOne(prompt: PickOnePrompt, selected: Note.ID)
 
@@ -44,7 +44,7 @@ public enum ExerciseAttempt: Codable, Hashable, Sendable {
 }
 
 /// Separate from card review history: recording an attempt does not schedule a card.
-public struct ExerciseEvent: Identifiable, Codable, Hashable, Sendable {
+public struct ExerciseEvent: Identifiable, Hashable, Sendable {
     public let idempotencyKey: UUID
     public let sessionID: PracticeSession.ID
     public let version: Int
@@ -61,13 +61,6 @@ public struct ExerciseEvent: Identifiable, Codable, Hashable, Sendable {
         self.version = 1
         self.answeredAt = Date(milliseconds: answeredAt.milliseconds)
         self.attempt = attempt
-    }
-
-    /// Deterministic snapshot bytes preserve raw text and automatically include future Codable fields.
-    public func encodedPayload() throws -> Data {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys]
-        return try encoder.encode(self)
     }
 
     /// Shared write-boundary validation. Snapshots need not equal content edited since prompt generation.

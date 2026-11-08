@@ -2,6 +2,7 @@ import Foundation
 import Testing
 
 @testable import LexcalliCore
+@testable import LexcalliStore
 
 extension ExerciseStoreTests {
     @Test(arguments: StoreKind.allCases)
@@ -19,7 +20,7 @@ extension ExerciseStoreTests {
         _ = try await store.record(first)
         let retried = run.answerExercise(.writing("changed input is ignored"), at: now.addingTimeInterval(10))
         let retry = try #require(retried)
-        #expect(try retry.encodedPayload() == first.encodedPayload())
+        #expect(try ExerciseEventPayload(retry).encoded() == ExerciseEventPayload(first).encoded())
         #expect(try await store.record(retry) == .alreadyRecorded)
         run.acknowledge(retry.id)
         #expect(run.feedback != nil && !run.isComplete && run.answeredCount == 1)

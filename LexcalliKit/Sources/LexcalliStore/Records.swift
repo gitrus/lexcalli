@@ -324,4 +324,6 @@ extension Optional where Wrapped == ProjectionCheckpoint {
 
 public enum StoreError: Error, Hashable, Sendable {
     case corruptRow(String)
+    /// Written by a newer app version.
+    case unsupportedPayloadVersion(Int)
 }

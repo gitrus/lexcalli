@@ -24,7 +24,7 @@ extension DatabaseStore {
     }
 
     public func record(_ event: ExerciseEvent) async throws -> RecordOutcome {
-        let payload = try event.encodedPayload()
+        let payload = try ExerciseEventPayload(event).encoded()
         return try await writer.write { db in
             if try CardReviewEventRecord.exists(db, key: event.id) {
                 throw ReviewStoreError.idempotencyConflict(event.id)
@@ -66,7 +66,7 @@ extension DatabaseStore {
                     "SELECT payload FROM exercise_event WHERE practice_session_id = ? ORDER BY answered_at, idempotency_key",
                 arguments: [session]
             )
-            .map { try JSONDecoder().decode(ExerciseEvent.self, from: $0) }
+            .map(ExerciseEventPayload.event(from:))
         }
     }
 }

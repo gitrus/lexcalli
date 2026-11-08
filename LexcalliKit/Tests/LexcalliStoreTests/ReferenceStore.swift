@@ -2,6 +2,8 @@ import Foundation
 import LexcalliCore
 import Synchronization
 
+@testable import LexcalliStore
+
 /// A second implementation of the store contract, so the contract tests don't only describe `DatabaseStore`.
 /// Observers are notified under the change's lock, so they see changes in commit order.
 final class ReferenceStore: TestableStore {
@@ -32,11 +34,11 @@ final class ReferenceStore: TestableStore {
     }
 
     @concurrent func record(_ event: ExerciseEvent) async throws -> RecordOutcome {
-        let payload = try event.encodedPayload()
+        let payload = try ExerciseEventPayload(event).encoded()
         return try state.withLock { state in
             guard state.events[event.id] == nil else { throw ReviewStoreError.idempotencyConflict(event.id) }
             if let saved = state.exerciseEvents[event.id] {
-                guard try saved.encodedPayload() == payload else {
+                guard try ExerciseEventPayload(saved).encoded() == payload else {
                     throw ReviewStoreError.idempotencyConflict(event.id)
                 }
                 return .alreadyRecorded

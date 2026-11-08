@@ -1,7 +1,7 @@
 import Foundation
 
 /// A writing prompt snapshots the displayed question and expected answer for a single card.
-public struct WritingPrompt: Codable, Hashable, Sendable {
+public struct WritingPrompt: Hashable, Sendable {
     public let cardID: Card.ID
     public let question: String
     public let expectedAnswer: String

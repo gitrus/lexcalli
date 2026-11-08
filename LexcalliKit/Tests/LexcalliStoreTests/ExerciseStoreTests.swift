@@ -105,7 +105,7 @@ struct ExerciseStoreTests {
         }
         let history = try await store.exerciseEvents(in: opened.session.id)
         #expect(history.count == 1)
-        #expect(try history[0].encodedPayload() == first.encodedPayload())
+        #expect(try ExerciseEventPayload(history[0]).encoded() == ExerciseEventPayload(first).encoded())
     }
 
     @Test(arguments: StoreKind.allCases)

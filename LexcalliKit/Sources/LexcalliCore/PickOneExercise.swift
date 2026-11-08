@@ -1,7 +1,7 @@
 import Foundation
 
 /// A displayed answer and the note from which it was taken.
-public struct PickOneOption: Codable, Hashable, Sendable {
+public struct PickOneOption: Hashable, Sendable {
     public let noteID: Note.ID
     public let answer: String
 
@@ -11,7 +11,7 @@ public struct PickOneOption: Codable, Hashable, Sendable {
     }
 }
 
-public struct PickOnePrompt: Codable, Hashable, Sendable {
+public struct PickOnePrompt: Hashable, Sendable {
     public let cardID: Card.ID
     public let question: String
     public let expectedAnswer: String
