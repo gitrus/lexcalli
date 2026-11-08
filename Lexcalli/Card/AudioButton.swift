@@ -12,11 +12,7 @@ struct AudioButton: View {
             player = try? AVAudioPlayer(contentsOf: url)
             player?.play()
         }
-        .labelStyle(.iconOnly)
-        .buttonStyle(.glass)
-        // The glass style draws the icon in the primary color; keep it in the accent color.
-        .foregroundStyle(.tint)
-        .buttonBorderShape(.circle)
+        .buttonStyle(AudioButtonStyle())
         .onDisappear { player?.stop() }
     }
 }

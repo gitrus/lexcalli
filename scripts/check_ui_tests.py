@@ -14,6 +14,7 @@ REQUIRED_TESTS = (
     "MixedExerciseUITests/testPickOneSelectionIsPrivateUntilConfirmationAndFinishSaves()",
     "MixedExerciseUITests/testInsufficientChoicesUseFlashcardFallback()",
     "MixedExerciseUITests/testWritingAtAccessibilitySizeKeepsConfirmationReachable()",
+    "StudyRelaunchUITests/testSpeakerPressKeepsCircularTargetAndDoesNotFlipCard()",
 )
 
 
