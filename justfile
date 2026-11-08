@@ -25,7 +25,8 @@ fmt:
 lint:
     swift format lint --strict --recursive --parallel {{ swift_paths }}
 
-# Run core tests (no simulator needed); extra args go to `swift test`, e.g. `just test --filter Compatibility`
+# Run core tests (no simulator needed); use one filter per invocation, e.g. `just test --filter Compatibility`.
+# Arguments are expanded by zsh; for a regex containing `|`, call `swift test` directly with a quoted filter.
 test *args:
     swift test --package-path {{ core }} {{ test_flags }} {{ args }}
 
@@ -42,7 +43,8 @@ ui-test name=device: _require-xcode
     # Two simulators can share a name; a UDID picks one.
     if [[ '{{ name }}' =~ '^[0-9A-Fa-f-]{36}$' ]]; then destination='id={{ name }}'; else destination='name={{ name }}'; fi
     xcodebuild -project {{ project }} -scheme {{ scheme }} -destination "platform=iOS Simulator,$destination" \
-        -derivedDataPath {{ derived_data }} -resultBundlePath {{ derived_data }}/ui-tests.xcresult -quiet test
+        -derivedDataPath {{ derived_data }} -resultBundlePath {{ derived_data }}/ui-tests.xcresult \
+        -parallel-testing-enabled NO -quiet test
     python3 scripts/check_ui_tests.py {{ derived_data }}/ui-tests.xcresult
 
 # Build, install, and launch the app in a simulator (requires Xcode); `just run booted` uses the one already running

@@ -2,7 +2,7 @@ import LexcalliCore
 import SwiftUI
 
 struct RootView: View {
-    @State private var selection: AppSection = .decks
+    @State private var selection: AppSection = .practice
     @State private var path: [AppRoute] = []
     @State private var isMenuOpen = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -57,7 +57,8 @@ struct RootView: View {
     private var sectionContent: some View {
         switch selection {
         case .decks: DecksView()
-        case .practice: PracticeView()
+        // A double tap must not push a second session, which would end the first one beneath it.
+        case .practice: PracticeView { route in if path.last != route { path.append(route) } }
         case .settings: SettingsView()
         }
     }

@@ -2,6 +2,8 @@ import Foundation
 import LexcalliCore
 import Synchronization
 
+@testable import LexcalliStore
+
 /// A second implementation of the store contract, so the contract tests don't only describe `DatabaseStore`.
 /// Observers are notified under the change's lock, so they see changes in commit order.
 final class ReferenceStore: TestableStore {
@@ -27,6 +29,33 @@ final class ReferenceStore: TestableStore {
         observe { .deck(id, $0) }
     }
 
+    @concurrent func record(_ event: ExerciseEvent) async throws -> RecordOutcome {
+        let payload = try ExerciseEventPayload(event).encoded()
+        return try state.withLock { state in
+            guard state.events[event.id] == nil else { throw ReviewStoreError.idempotencyConflict(event.id) }
+            if let saved = state.exerciseEvents[event.id] {
+                guard try ExerciseEventPayload(saved).encoded() == payload else {
+                    throw ReviewStoreError.idempotencyConflict(event.id)
+                }
+                return .alreadyRecorded
+            }
+            guard let session = state.sessions[event.sessionID] else {
+                throw ReviewStoreError.unknownSession(event.sessionID)
+            }
+            try event.validate(in: session, noteIDs: Set(state.decks[session.deckID]?.notes.map(\.id) ?? []))
+            state.exerciseEvents[event.id] = event
+            return .recorded
+        }
+    }
+
+    @concurrent func exerciseEvents(in session: PracticeSession.ID) async throws -> [ExerciseEvent] {
+        state.withLock { state in
+            state.exerciseEvents.values.filter { $0.sessionID == session }.sorted {
+                ($0.answeredAt, $0.id.uuidString) < ($1.answeredAt, $1.id.uuidString)
+            }
+        }
+    }
+
     @concurrent func save(_ deck: Deck, at date: Date) async throws {
         state.withLock { state in
             state.save(deck, at: date)
@@ -34,18 +63,20 @@ final class ReferenceStore: TestableStore {
         }
     }
 
-    @concurrent func openSession(_ id: PracticeSession.ID, deck deckID: Deck.ID, at date: Date) async throws
-        -> OpenedSession
-    {
+    @concurrent func openSession(
+        _ id: PracticeSession.ID, deck deckID: Deck.ID, mode: PracticeMode, at date: Date
+    ) async throws -> OpenedSession {
         try state.withLock { state throws(ReviewStoreError) in
             guard state.decks[deckID] != nil else { throw .unknownDeck(deckID) }
             if let existing = state.sessions[id] {
                 // A retried open after a lost acknowledgement: same session, minus notes already answered.
-                guard existing.status == .open, existing.deckID == deckID else { throw .sessionNotOpen(id) }
+                guard existing.status == .open else { throw .sessionNotOpen(id) }
+                guard existing.deckID == deckID, existing.mode == mode else { throw .incompatibleSession(id) }
                 return OpenedSession(
                     session: existing, queue: state.queue(for: existing, at: date),
                     recovered: ProjectionReport(needsRecalculation: state.pendingRepairs))
             }
+            guard mode != .mixed || state.hasCardReviews(deck: deckID) else { throw .mixedLocked(deckID) }
             var report = ProjectionReport()
             let open = state.sessions.values.filter { $0.status == .open }
                 .sorted { ($0.openedAt, $0.id.uuidString) < ($1.openedAt, $1.id.uuidString) }
@@ -55,7 +86,7 @@ final class ReferenceStore: TestableStore {
             let reported = Set(report.needsRecalculation + report.failedCards)
             report.needsRecalculation += state.pendingRepairs.filter { !reported.contains($0) }
             state.notifyObservers()
-            let session = PracticeSession(id: id, deckID: deckID, openedAt: date)
+            let session = PracticeSession(id: id, deckID: deckID, mode: mode, openedAt: date)
             state.sessions[id] = session
             return OpenedSession(session: session, queue: state.queue(for: session, at: date), recovered: report)
         }
@@ -63,6 +94,9 @@ final class ReferenceStore: TestableStore {
 
     @concurrent func record(_ event: CardReviewEvent) async throws -> RecordOutcome {
         try state.withLock { state throws(ReviewStoreError) in
+            guard state.exerciseEvents[event.idempotencyKey] == nil else {
+                throw .idempotencyConflict(event.idempotencyKey)
+            }
             if let saved = state.events[event.idempotencyKey] {
                 guard saved == event else { throw .idempotencyConflict(event.idempotencyKey) }
                 return .alreadyRecorded
@@ -76,6 +110,7 @@ final class ReferenceStore: TestableStore {
             }
             state.events[event.idempotencyKey] = event
             state.eventKeys[event.cardID, default: []].append(event.idempotencyKey)
+            state.notifyObservers()
             return .recorded
         }
     }
@@ -140,6 +175,7 @@ private struct State: Sendable {
     var noteDecks: [Note.ID: Deck.ID] = [:]
     var projections: [Card.ID: CardProjection] = [:]
     var events: [UUID: CardReviewEvent] = [:]
+    var exerciseEvents: [UUID: ExerciseEvent] = [:]
     var eventKeys: [Card.ID: [UUID]] = [:]
     var sessions: [PracticeSession.ID: PracticeSession] = [:]
     var observers: [UUID: Observer] = [:]
@@ -173,6 +209,13 @@ private struct State: Sendable {
         eventKeys[cardID, default: []].compactMap { events[$0] }
     }
 
+    func hasCardReviews(deck: Deck.ID) -> Bool {
+        events.values.contains { event in
+            if let session = event.sessionID { return sessions[session]?.deckID == deck }
+            return noteDecks[event.cardID.noteID] == deck
+        }
+    }
+
     var pendingRepairs: [Card.ID] {
         eventKeys.keys.filter { card in
             let endedCount = events(of: card).count { event in
@@ -186,6 +229,7 @@ private struct State: Sendable {
         let pending = Set(pendingRepairs)
         // One card per note per session.
         let answered = Set(events.values.filter { $0.sessionID == session.id }.map(\.cardID.noteID))
+            .union(exerciseEvents.values.filter { $0.sessionID == session.id }.map(\.attempt.cardID.noteID))
         let candidates = (decks[session.deckID]?.notes ?? []).flatMap(\.cards).compactMap { card in
             answered.contains(card.noteID) || pending.contains(card.id)
                 ? nil : projections[card.id].map { QueueCandidate(cardID: card.id, due: $0.scheduling.due) }
@@ -227,7 +271,10 @@ private struct State: Sendable {
             let summaries = decks.values.map { deck in
                 DeckSummary(
                     deck,
-                    studiedCardCount: deck.notes.flatMap(\.cards).count { projections[$0.id]?.scheduling.state != .new }
+                    studiedCardCount: deck.notes.flatMap(\.cards).count {
+                        projections[$0.id]?.scheduling.state != .new
+                    },
+                    hasCardReviews: hasCardReviews(deck: deck.id)
                 )
             }
             .sorted {

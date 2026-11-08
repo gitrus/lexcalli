@@ -44,4 +44,6 @@ Learning content, cards, topics, exercises, exercise attempts, and scheduled rev
 - Sources and rights for example audio and images; sharing or publishing content.
 - What progress feedback users need besides Anki card scheduling.
 
-See [data layering](data-layering.md) for data ownership and [learning engine](learning-engine.md) for exercise/knowledge behavior.
+See:
+- [data layering](data-layering.md) for data ownership
+- [learning use cases](learning-use-cases.md) for practice flows

@@ -5,6 +5,13 @@ struct PracticeSessionView: View {
     let deckID: Deck.ID
     /// Shown until the deck loads.
     let name: String
+    let mode: PracticeMode
+
+    init(deckID: Deck.ID, name: String, mode: PracticeMode = .flashcards) {
+        self.deckID = deckID
+        self.name = name
+        self.mode = mode
+    }
 
     @Environment(\.library) private var library
     @Environment(\.dismiss) private var dismiss
@@ -45,7 +52,7 @@ struct PracticeSessionView: View {
             }
         }
         .task {
-            if model == nil { model = PracticeModel(library: library, deckID: deckID, deckName: name) }
+            if model == nil { model = PracticeModel(library: library, deckID: deckID, deckName: name, mode: mode) }
             await model?.open()
         }
     }
@@ -66,12 +73,20 @@ struct PracticeSessionView: View {
         case .studying, .finishing:
             if let card = model.current {
                 VStack(spacing: configuration.controlSpacing) {
-                    Text("\(model.progress.answered + 1) of \(model.progress.total)")
+                    Text("\(model.currentPosition) of \(model.progress.total)")
                         .font(configuration.progressFont)
                         .foregroundStyle(.secondary)
-                    // A new identity per card resets its reveal state.
-                    PracticeCardView(card: card, model: model)
-                        .id(card.id)
+                    // Input/reveal state belongs to this frozen prompt, never a redraw.
+                    switch model.currentPrompt {
+                    case .flashcard:
+                        PracticeCardView(card: card, model: model).id(card.id)
+                    case .writing(let prompt):
+                        WritingExerciseView(prompt: prompt, model: model).id(prompt.cardID)
+                    case .pickOne(let prompt):
+                        PickOneExerciseView(prompt: prompt, model: model).id(prompt.cardID)
+                    case nil:
+                        ProgressView()
+                    }
                 }
                 .padding()
             } else if model.phase == .finishing {
@@ -92,6 +107,12 @@ struct PracticeSessionView: View {
             } description: {
                 if model.progress.total == 0 {
                     Text("No cards in this deck are due now.")
+                } else if mode == .mixed {
+                    VStack {
+                        Text("Exercises completed: \(model.exercisesCompleted)")
+                        Text("Flashcards reviewed: \(reviewed)")
+                        Text("Writing and Pick-one do not change scheduling yet. Some notes may still be due.")
+                    }
                 } else {
                     Text("^[\(reviewed) card](inflect: true) reviewed.")
                 }

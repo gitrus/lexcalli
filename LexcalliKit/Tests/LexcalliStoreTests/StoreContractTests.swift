@@ -45,7 +45,13 @@ import Testing
         _ = try await store.record(event(opened.queue[0], .good, in: opened.session, at: now))
         _ = try await store.endSession(opened.session.id, at: now)
 
-        #expect(try await summaries.next()?.first?.studiedCardCount == 1)
+        // The saved review flips availability first; ending the session then projects it. Observation may merge both.
+        var summary = try #require(try await summaries.next()?.first)
+        if summary.studiedCardCount == 0 {
+            #expect(summary.hasCardReviews)
+            summary = try #require(try await summaries.next()?.first)
+        }
+        #expect(summary.studiedCardCount == 1 && summary.hasCardReviews)
     }
 
     @Test(arguments: StoreKind.allCases)

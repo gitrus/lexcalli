@@ -64,7 +64,8 @@ public final class DatabaseStore: DeckStore, ReviewStore {
                         (SELECT COUNT(*) FROM card JOIN note ON note.id = card.note_id
                             WHERE note.deck_id = deck.id) AS card_count,
                         (SELECT COUNT(*) FROM card_scheduling JOIN note ON note.id = card_scheduling.note_id
-                            WHERE note.deck_id = deck.id AND card_scheduling.state != \(CardState.new.rawValue)) AS studied_card_count
+                            WHERE note.deck_id = deck.id AND card_scheduling.state != \(CardState.new.rawValue)) AS studied_card_count,
+                        \(Self.deckHasSavedCardReviewSQL(deckIDExpression: "deck.id")) AS has_card_reviews
                     FROM deck ORDER BY name, id
                     """
             ).map { row in
@@ -75,7 +76,8 @@ public final class DatabaseStore: DeckStore, ReviewStore {
                     meaningLanguage: Locale.Language(identifier: row["meaning_language"]),
                     noteCount: row["note_count"],
                     cardCount: row["card_count"],
-                    studiedCardCount: row["studied_card_count"]
+                    studiedCardCount: row["studied_card_count"],
+                    hasCardReviews: row["has_card_reviews"]
                 )
             }
         }

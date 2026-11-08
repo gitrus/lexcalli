@@ -42,4 +42,4 @@ Use this when implementing or reviewing UI changes. These are checks to perform,
 
 Check API availability against the actual SDK and iOS 26 deployment target. Do not adopt newer skill examples blindly. Prefer the existing presentation, domain, and store boundaries over adding a framework to satisfy this checklist.
 
-See [the way](../docs/the-way.md) for verification strategy and [data management](../docs/data-management.md) for persistence and recovery decisions. Record concrete defects and acceptance criteria in tasks, not in this checklist.
+See [the way](../docs/the_way.md) for verification strategy and [data management](../docs/data_management.md) for persistence and recovery decisions. Record concrete defects and acceptance criteria in tasks, not in this checklist. (../docs/README.md)

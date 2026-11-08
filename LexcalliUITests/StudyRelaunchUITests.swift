@@ -9,6 +9,26 @@ final class StudyRelaunchUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    func testSpeakerPressKeepsCircularTargetAndDoesNotFlipCard() {
+        let app = launch()
+        show("Practice", in: app)
+        // This deck has no recorded audio, so the button exercises the system read-aloud voice.
+        tap(containing: "Japanese Nature", in: app)
+        XCTAssertTrue(app.buttons["Show Answer"].waitForExistence(timeout: 10))
+        let speaker = app.buttons["Speak"].firstMatch
+        XCTAssertTrue(speaker.waitForExistence(timeout: 10))
+        XCTAssertTrue(speaker.isHittable)
+        XCTAssertGreaterThanOrEqual(speaker.frame.width, 44)
+        XCTAssertEqual(speaker.frame.width, speaker.frame.height, accuracy: 1)
+        attachScreenshot("Speaker before press", app)
+        // Also marks the hold for a simultaneous simulator screenshot of the pressed platter.
+        NSLog("LEXCALLI_SPEAKER_HOLD_BEGIN")
+        speaker.press(forDuration: 6)
+        XCTAssertTrue(app.buttons["Show Answer"].exists)
+        XCTAssertFalse(app.buttons["Good"].exists)
+        attachScreenshot("Speaker after press", app)
+    }
+
     func testReviewHistoryAndDueDatesSurviveTermination() throws {
         var app = launch()
 

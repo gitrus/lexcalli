@@ -5,7 +5,7 @@ from check_ui_tests import REQUIRED_TESTS, validate
 
 class UITestGateTests(unittest.TestCase):
     def setUp(self):
-        self.summary = {"result": "Passed", "failedTests": 0, "passedTests": 3}
+        self.summary = {"result": "Passed", "failedTests": 0, "passedTests": len(REQUIRED_TESTS)}
         self.cases = [
             {"nodeType": "Test Case", "nodeIdentifier": name, "result": "Passed"}
             for name in REQUIRED_TESTS
@@ -16,6 +16,23 @@ class UITestGateTests(unittest.TestCase):
 
     def test_all_required_journeys_pass(self):
         self.assertEqual(validate(self.summary, self.report()), [])
+
+    def test_mixed_journeys_are_required_and_cannot_be_skipped(self):
+        journeys = {
+            "MixedExerciseUITests/testMixedUnlocksAfterSavedReviewAndRelaunch()",
+            "MixedExerciseUITests/testWritingRetryRetainsFinalFeedbackAndSurvivesRelaunch()",
+            "MixedExerciseUITests/testPickOneSelectionIsPrivateUntilConfirmationAndFinishSaves()",
+            "MixedExerciseUITests/testInsufficientChoicesUseFlashcardFallback()",
+            "MixedExerciseUITests/testWritingAtAccessibilitySizeKeepsConfirmationReachable()",
+        }
+        self.assertTrue(journeys.issubset(REQUIRED_TESTS))
+        for name in journeys:
+            with self.subTest(name=name):
+                reports = [dict(case) for case in self.cases]
+                next(case for case in reports if case["nodeIdentifier"] == name)["result"] = "Skipped"
+                self.assertTrue(validate(self.summary, {"testNodes": reports}))
+                reports = [case for case in reports if case["nodeIdentifier"] != name]
+                self.assertTrue(validate(self.summary, {"testNodes": reports}))
 
     def test_settings_alone_does_not_satisfy_gate(self):
         self.summary["passedTests"] = 1

@@ -9,6 +9,12 @@ REQUIRED_TESTS = (
     "NavigationUITests/testEverySettingsPageOpens()",
     "StudyRelaunchUITests/testAnsweringLastCardEndsSession()",
     "StudyRelaunchUITests/testReviewHistoryAndDueDatesSurviveTermination()",
+    "MixedExerciseUITests/testMixedUnlocksAfterSavedReviewAndRelaunch()",
+    "MixedExerciseUITests/testWritingRetryRetainsFinalFeedbackAndSurvivesRelaunch()",
+    "MixedExerciseUITests/testPickOneSelectionIsPrivateUntilConfirmationAndFinishSaves()",
+    "MixedExerciseUITests/testInsufficientChoicesUseFlashcardFallback()",
+    "MixedExerciseUITests/testWritingAtAccessibilitySizeKeepsConfirmationReachable()",
+    "StudyRelaunchUITests/testSpeakerPressKeepsCircularTargetAndDoesNotFlipCard()",
 )
 
 

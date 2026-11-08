@@ -10,10 +10,12 @@ public struct DeckSummary: Identifiable, Hashable, Sendable {
     public var cardCount: Int
     /// Cards no longer new, from ended sessions or an imported history.
     public var studiedCardCount: Int
+    /// A card review is saved, whether or not it's projected yet; unlocks Mixed.
+    public var hasCardReviews: Bool
 
     public init(
         id: Deck.ID, name: String, termLanguage: Locale.Language, meaningLanguage: Locale.Language, noteCount: Int,
-        cardCount: Int, studiedCardCount: Int
+        cardCount: Int, studiedCardCount: Int, hasCardReviews: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -22,9 +24,10 @@ public struct DeckSummary: Identifiable, Hashable, Sendable {
         self.noteCount = noteCount
         self.cardCount = cardCount
         self.studiedCardCount = studiedCardCount
+        self.hasCardReviews = hasCardReviews
     }
 
-    public init(_ deck: Deck, studiedCardCount: Int = 0) {
+    public init(_ deck: Deck, studiedCardCount: Int = 0, hasCardReviews: Bool = false) {
         self.init(
             id: deck.id,
             name: deck.name,
@@ -32,7 +35,8 @@ public struct DeckSummary: Identifiable, Hashable, Sendable {
             meaningLanguage: deck.meaningLanguage,
             noteCount: deck.notes.count,
             cardCount: deck.notes.reduce(0) { $0 + $1.cards.count },
-            studiedCardCount: studiedCardCount
+            studiedCardCount: studiedCardCount,
+            hasCardReviews: hasCardReviews
         )
     }
 }
@@ -97,6 +101,19 @@ public enum RecordOutcome: Hashable, Sendable {
     case alreadyRecorded
 }
 
+/// One immutable write command, whichever log owns its event.
+public enum PendingAttempt: Hashable, Sendable {
+    case card(CardReviewEvent)
+    case exercise(ExerciseEvent)
+
+    public var id: UUID {
+        switch self {
+        case .card(let event): event.id
+        case .exercise(let event): event.id
+        }
+    }
+}
+
 public enum ReviewStoreError: Error, Hashable, Sendable {
     case unknownDeck(Deck.ID)
     case unknownSession(PracticeSession.ID)
@@ -106,13 +123,22 @@ public enum ReviewStoreError: Error, Hashable, Sendable {
     case unknownCard(Card.ID)
     case cardNotInSessionDeck(Card.ID)
     case idempotencyConflict(UUID)
+    case incompatibleSession(PracticeSession.ID)
+    case mixedLocked(Deck.ID)
+    case invalidExercise(UUID)
 }
 
 /// Recording only appends; ending a session, or opening the next one, projects events into scheduling.
 public protocol ReviewStore: Sendable {
     /// Ends and projects open sessions, then opens this one in one write. Reports pending repairs,
     /// including on retry, and excludes those cards from the queue until recalculated.
-    func openSession(_ id: PracticeSession.ID, deck: Deck.ID, at date: Date) async throws -> OpenedSession
+    func openSession(
+        _ id: PracticeSession.ID, deck: Deck.ID, mode: PracticeMode, at date: Date
+    ) async throws -> OpenedSession
+
+    func record(_ event: ExerciseEvent) async throws -> RecordOutcome
+    /// Durable history/verification read; currently exercised by shared store and relaunch tests.
+    func exerciseEvents(in session: PracticeSession.ID) async throws -> [ExerciseEvent]
 
     /// Returns `.alreadyRecorded` for a retried event.
     func record(_ event: CardReviewEvent) async throws -> RecordOutcome
@@ -125,4 +151,18 @@ public protocol ReviewStore: Sendable {
     func session(_ id: PracticeSession.ID) async throws -> PracticeSession?
     func projection(of card: Card.ID) async throws -> CardProjection?
     func reviewEvents(of card: Card.ID) async throws -> [CardReviewEvent]
+}
+
+extension ReviewStore {
+    public func record(_ attempt: PendingAttempt) async throws -> RecordOutcome {
+        switch attempt {
+        case .card(let event): try await record(event)
+        case .exercise(let event): try await record(event)
+        }
+    }
+
+    /// Existing callers continue to open Flashcards sessions.
+    public func openSession(_ id: PracticeSession.ID, deck: Deck.ID, at date: Date) async throws -> OpenedSession {
+        try await openSession(id, deck: deck, mode: .flashcards, at: date)
+    }
 }

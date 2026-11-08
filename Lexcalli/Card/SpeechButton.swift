@@ -7,7 +7,7 @@ struct SpeechButton: View {
     let text: String
     let language: Locale.Language
 
-    @Environment(\.flashCard.speechRate) private var rate
+    @Environment(\.flashCard) private var configuration
 
     /// Shared, so starting one button stops another.
     private static let synthesizer = AVSpeechSynthesizer()
@@ -16,17 +16,13 @@ struct SpeechButton: View {
         Button("Speak", systemImage: "speaker.wave.2.fill") {
             let utterance = AVSpeechUtterance(string: text)
             utterance.voice = .best(for: language)
-            utterance.rate = rate
+            utterance.rate = configuration.speechRate
             // While VoiceOver or Spoken Content runs, use the voice and rate the user chose there.
             utterance.prefersAssistiveTechnologySettings = true
             Self.synthesizer.stopSpeaking(at: .immediate)
             Self.synthesizer.speak(utterance)
         }
-        .labelStyle(.iconOnly)
-        .buttonStyle(.glass)
-        // Same look as `AudioButton`: the glass style draws the icon in the primary color.
-        .foregroundStyle(.tint)
-        .buttonBorderShape(.circle)
+        .buttonStyle(AudioButtonStyle())
         .accessibilityHint("Uses a system voice")
         .onDisappear { Self.synthesizer.stopSpeaking(at: .immediate) }
     }

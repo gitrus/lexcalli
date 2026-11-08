@@ -1,0 +1,151 @@
+import Foundation
+
+/// Raw values are stored in exercise history; do not rename them.
+public enum ExerciseKind: String, Codable, Hashable, Sendable {
+    case flashcard = "flashcard"
+    case writing = "writing"
+    case pickOne = "pickOne"
+}
+
+public enum ExercisePrompt: Hashable, Sendable {
+    case flashcard(Card.ID)
+    case writing(WritingPrompt)
+    case pickOne(PickOnePrompt)
+
+    public var cardID: Card.ID {
+        switch self {
+        case .flashcard(let card): card
+        case .writing(let prompt): prompt.cardID
+        case .pickOne(let prompt): prompt.cardID
+        }
+    }
+
+    public var kind: ExerciseKind {
+        switch self {
+        case .flashcard: .flashcard
+        case .writing: .writing
+        case .pickOne: .pickOne
+        }
+    }
+}
+
+public enum ExerciseResponse: Hashable, Sendable {
+    case flashcard(Rating)
+    case writing(String)
+    case pickOne(Note.ID)
+}
+
+public enum ExerciseFeedback: Hashable, Sendable {
+    /// A flashcard rating is the learner's self-assessment, not an automatic grade.
+    case flashcard(Rating)
+    case writing([WritingComparison.Part])
+    case pickOne(selected: Note.ID, correct: Note.ID)
+}
+
+/// Strategies generate a frozen prompt and interpret only their own response type.
+public protocol ExerciseStrategy: Sendable {
+    var kind: ExerciseKind { get }
+    var version: Int { get }
+    func generate<R: RandomNumberGenerator>(card: Card.ID, notes: [Note], using random: inout R) -> ExercisePrompt?
+    func evaluate(_ response: ExerciseResponse, for prompt: ExercisePrompt) -> ExerciseFeedback?
+}
+
+extension WritingExercise: ExerciseStrategy {
+    public var kind: ExerciseKind { .writing }
+    public var version: Int { 1 }
+
+    public func generate<R: RandomNumberGenerator>(
+        card: Card.ID, notes: [Note], using random: inout R
+    ) -> ExercisePrompt? {
+        notes.first { $0.id == card.noteID }.flatMap { prompt(for: $0) }.map(ExercisePrompt.writing)
+    }
+
+    public func evaluate(_ response: ExerciseResponse, for prompt: ExercisePrompt) -> ExerciseFeedback? {
+        guard prompt.kind == kind else { return nil }
+        return ExerciseAttempt(prompt: prompt, response: response)?.feedback
+    }
+}
+
+extension PickOneExercise: ExerciseStrategy {
+    public var kind: ExerciseKind { .pickOne }
+    public var version: Int { 1 }
+
+    public func generate<R: RandomNumberGenerator>(
+        card: Card.ID, notes: [Note], using random: inout R
+    ) -> ExercisePrompt? {
+        self.prompt(for: card, in: notes, using: &random).map(ExercisePrompt.pickOne)
+    }
+
+    public func evaluate(_ response: ExerciseResponse, for prompt: ExercisePrompt) -> ExerciseFeedback? {
+        guard prompt.kind == kind else { return nil }
+        return ExerciseAttempt(prompt: prompt, response: response)?.feedback
+    }
+}
+
+public struct FlashcardExercise: ExerciseStrategy {
+    public let kind: ExerciseKind = .flashcard
+    public let version = 1
+
+    public init() {}
+
+    public func generate<R: RandomNumberGenerator>(
+        card: Card.ID, notes: [Note], using random: inout R
+    ) -> ExercisePrompt? {
+        .flashcard(card)
+    }
+
+    public func evaluate(_ response: ExerciseResponse, for prompt: ExercisePrompt) -> ExerciseFeedback? {
+        guard case .flashcard(let rating) = response, case .flashcard = prompt else { return nil }
+        return .flashcard(rating)
+    }
+}
+
+/// Explicit composition; the caller stores the returned prompt for its entire presentation lifetime.
+public struct ExerciseEngine: Sendable {
+    private let strategies: [any ExerciseStrategy]
+
+    /// Callers list eligible kinds explicitly; seeded randomness is the only selection policy.
+    public init(strategies: [any ExerciseStrategy]) {
+        var kinds = Set<ExerciseKind>()
+        self.strategies = strategies.filter { kinds.insert($0.kind).inserted }
+    }
+
+    public func generate<R: RandomNumberGenerator>(
+        card: Card.ID, notes: [Note], using random: inout R
+    ) -> ExercisePrompt {
+        let eligible = strategies.compactMap { strategy in
+            guard let prompt = strategy.generate(card: card, notes: notes, using: &random),
+                prompt.kind == strategy.kind, prompt.cardID.noteID == card.noteID
+            else { return nil as ExercisePrompt? }
+            return prompt
+        }
+        return eligible.randomElement(using: &random) ?? .flashcard(card)
+    }
+
+    public func evaluate(_ response: ExerciseResponse, for prompt: ExercisePrompt) -> ExerciseFeedback? {
+        if let strategy = strategies.first(where: { $0.kind == prompt.kind }) {
+            return strategy.evaluate(response, for: prompt)
+        }
+        // A safety fallback is still a fully usable flashcard, even with a narrowed fixture strategy list.
+        return prompt.kind == .flashcard ? FlashcardExercise().evaluate(response, for: prompt) : nil
+    }
+}
+
+/// A table rather than a switch: a new mode or exercise type is a new entry, and no caller changes.
+public struct ExerciseEnginesByMode: Sendable {
+    private let engines: [PracticeMode: ExerciseEngine]
+
+    public init(_ strategies: [PracticeMode: [any ExerciseStrategy]]) {
+        engines = strategies.mapValues(ExerciseEngine.init(strategies:))
+    }
+
+    /// A mode without an entry offers flashcards only.
+    public func engine(for mode: PracticeMode) -> ExerciseEngine {
+        engines[mode] ?? ExerciseEngine(strategies: [FlashcardExercise()])
+    }
+
+    public static let standard = ExerciseEnginesByMode([
+        .flashcards: [FlashcardExercise()],
+        .mixed: [FlashcardExercise(), WritingExercise()] + (PickOneExercise().map { [$0] } ?? []),
+    ])
+}

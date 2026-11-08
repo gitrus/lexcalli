@@ -7,6 +7,7 @@ enum AppRoute: Hashable, Codable {
     case deck(Deck.ID, name: String)
     case word(Note.ID, deck: Deck.ID)
     case practice(deck: Deck.ID, name: String)
+    case mixedPractice(deck: Deck.ID, name: String)
     case settings(SettingsPage)
 
     @ViewBuilder
@@ -15,6 +16,7 @@ enum AppRoute: Hashable, Codable {
         case .deck(let id, let name): DeckView(deckID: id, name: name)
         case .word(let id, let deckID): WordView(noteID: id, deckID: deckID)
         case .practice(let deckID, let name): PracticeSessionView(deckID: deckID, name: name)
+        case .mixedPractice(let deckID, let name): PracticeSessionView(deckID: deckID, name: name, mode: .mixed)
         case .settings(.cards): CardSettingsView()
         case .settings(.appearance): AppearanceSettingsView()
         case .settings(.about): AboutView()

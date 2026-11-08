@@ -1,3 +1,5 @@
+// Preserve the short local names in the shipped migration without changing its source.
+// swiftlint:disable identifier_name
 import GRDB
 
 /// Append-only: never edit a shipped migration. Each runs in its own transaction.
@@ -5,6 +7,22 @@ extension DatabaseMigrator {
     static var lexcalli: DatabaseMigrator {
         var migrator = DatabaseMigrator()
         migrator.registerMigration("v1-content-and-reviews", migrate: createContentAndReviews)
+        migrator.registerMigration("v2-exercise-attempts") { db in
+            try db.create(index: "practice_session_deck", on: "practice_session", columns: ["deck_id"])
+            try db.alter(table: "practice_session") { table in
+                table.add(column: "mode", .integer).notNull().defaults(to: 0).check { [0, 1].contains($0) }
+            }
+            try db.create(table: "exercise_event") { table in
+                table.primaryKey("idempotency_key", .blob)
+                table.column("practice_session_id", .blob).notNull().indexed().references("practice_session")
+                table.column("note_id", .blob).notNull()
+                table.column("direction", .integer).notNull()
+                table.column("answered_at", .integer).notNull()
+                // Versioned Codable snapshot includes ordered options, references and target identity.
+                table.column("payload", .blob).notNull()
+                table.foreignKey(["note_id", "direction"], references: "card")
+            }
+        }
         return migrator
     }
 }

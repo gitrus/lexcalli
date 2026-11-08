@@ -5,7 +5,7 @@ import SwiftUI
 /// for example `.environment(\.flashCard.flipDuration, 0.8)`.
 nonisolated struct FlashCardConfiguration: Equatable {
     /// The card fills the space it gets, up to this height.
-    var maxHeight: CGFloat = 416
+    var maxHeight: CGFloat = 376
     var flipDuration: TimeInterval = 0.45
     var cornerRadius: CGFloat = 32
     var padding: CGFloat = 24
@@ -13,6 +13,11 @@ nonisolated struct FlashCardConfiguration: Equatable {
     var textFont: Font = .largeTitle.bold()
     var detailFont: Font = .body
     var transcriptionFont: Font = .title3
+    var audioButtonFont: Font = .title3
+    var audioButtonDiameter: CGFloat = 48
+    var audioButtonPressedScale: CGFloat = 0.96
+    var audioButtonPressedOpacity: Double = 0.8
+    var audioButtonPressDuration: TimeInterval = 0.1
     /// How far long text may shrink to fit, as a fraction of `textFont`.
     var minimumTextScale: CGFloat = 0.5
     var imageMaxHeight: CGFloat = 176

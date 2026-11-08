@@ -21,16 +21,16 @@ Anki compatibility is a domain and interchange boundary, **not a commitment to c
 - **Topics and relationships:** group notes and connect words, collocations, and example contexts (for example, these can be covered by a tagging system).
 - **Exercise types:** built into the app for now; configurable exercise types (declarative interaction and validation settings) may become Lexcalli data later.
 - **Exercise references:** an exercise refers to content and cards in roles such as target, contextual evidence, and distractor.
-- **Exercise attempts and practice sessions:** attempts are recorded as exercise review events in the exercise review log (planned); practice sessions, which exist today, group the events recorded during them.
+- **Exercise attempts and practice sessions:** durable exercise events retain confirmed writing/choice responses and prompt/option snapshots. Practice sessions group card and exercise events and persist their Flashcards/Mixed mode.
 
 ### Review logs
 
-There will be two separate review logs. The card review log exists today; the exercise review log is planned.
+There are two separate durable review logs.
 
 - **Card review log:** part of the Anki-compatible foundation; records *card review events*: per-card ratings used for scheduling and FSRS.
-- **Exercise review log:** part of the Lexcalli learning extensions; records *exercise review events*: exercise attempts with answers, correctness, hints, timing, and references to the cards involved.
+- **Exercise review log:** part of the Lexcalli learning extensions; records immutable *exercise review events* with kind/version, confirmation time, assessed card/direction, prompt/expected-answer snapshots, raw response or selected option, and ordered option references. Writing stores no automatic grade.
 
-The data layer stores both histories and references between related entries. The [learning engine](learning-engine.md#review-logs) defines when and how those links are created.
+The data layer stores both histories separately. Exercise-only answers currently do not create card reviews or scheduling credit. The [learning engine](learning_engine.md#review-logs) leaves future links between the logs to an explicit policy.
 
 ### Application and backend
 
@@ -40,7 +40,7 @@ The data layer stores both histories and references between related entries. The
 
 ## Not decided yet
 
-- Persistence schema beyond what milestone 1 built (content, cards, practice sessions, card review events; see [data management](data-management.md)), sync conflicts, and offline-first implementation.
+- Persistence beyond content, cards, practice sessions, card/exercise events (see [data management](data_management.md)), sync conflicts, and offline-first implementation.
 - AnkiWeb / two-way sync (not an initial requirement).
-- Storage representation for configurable exercise types, attempts, and links between the two review logs.
+- Storage representation for configurable exercise types and future links between the two review logs.
 - Media conversion/storage strategy.
