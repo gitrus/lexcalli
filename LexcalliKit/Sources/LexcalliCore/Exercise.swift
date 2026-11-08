@@ -130,3 +130,22 @@ public struct ExerciseEngine: Sendable {
         return prompt.kind == .flashcard ? FlashcardExercise().evaluate(response, for: prompt) : nil
     }
 }
+
+/// A table rather than a switch: a new mode or exercise type is a new entry, and no caller changes.
+public struct ExerciseEnginesByMode: Sendable {
+    private let engines: [PracticeMode: ExerciseEngine]
+
+    public init(_ strategies: [PracticeMode: [any ExerciseStrategy]]) {
+        engines = strategies.mapValues(ExerciseEngine.init(strategies:))
+    }
+
+    /// A mode without an entry offers flashcards only.
+    public func engine(for mode: PracticeMode) -> ExerciseEngine {
+        engines[mode] ?? ExerciseEngine(strategies: [FlashcardExercise()])
+    }
+
+    public static let standard = ExerciseEnginesByMode([
+        .flashcards: [FlashcardExercise()],
+        .mixed: [FlashcardExercise(), WritingExercise()] + (PickOneExercise().map { [$0] } ?? []),
+    ])
+}

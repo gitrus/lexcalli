@@ -97,4 +97,33 @@ struct MixedPracticeRunTests {
         #expect(run.feedback == .pickOne(selected: other.id, correct: note.id))
         #expect(run.currentPrompt == .pickOne(prompt))
     }
+
+    @Test func everyModeBuildsItsRunThroughThePlan() throws {
+        let card = Card.ID(noteID: note.id, direction: .forward)
+        func opened(_ mode: PracticeMode) -> OpenedSession {
+            OpenedSession(
+                session: PracticeSession(deckID: UUID(), mode: mode, openedAt: now), queue: [card],
+                recovered: ProjectionReport())
+        }
+        var random = PickOneExerciseTests.Seeded()
+
+        let flashcards = try PracticeRun(
+            opened: opened(.flashcards), notes: [note], engine: ExerciseEnginesByMode.standard.engine(for: .flashcards),
+            using: &random)
+        #expect(flashcards.items == [PracticeItem(card: card, prompt: .flashcard(card))])
+
+        let writingOnly = ExerciseEnginesByMode([.mixed: [WritingExercise()]])
+        let mixed = try PracticeRun(
+            opened: opened(.mixed), notes: [note], engine: writingOnly.engine(for: .mixed), using: &random)
+        let prompt = try #require(WritingExercise().prompt(for: note))
+        #expect(mixed.items == [PracticeItem(card: card, prompt: .writing(prompt))])
+
+        // A plan cannot smuggle exercise prompts into a Flashcards session.
+        let misconfigured = ExerciseEnginesByMode([.flashcards: [WritingExercise()]])
+        #expect(throws: PracticeRunError.invalidPrompt) {
+            try PracticeRun(
+                opened: opened(.flashcards), notes: [note], engine: misconfigured.engine(for: .flashcards),
+                using: &random)
+        }
+    }
 }

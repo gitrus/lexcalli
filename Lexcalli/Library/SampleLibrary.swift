@@ -70,7 +70,7 @@ enum SampleLibrary {
     static let preview: Library = {
         let media = MediaLibrary(root: URL.temporaryDirectory.appending(path: "Lexcalli-preview-media"))
         let decks = (try? SampleLibrary.decks(media: media)) ?? []
-        return Library(store: try! DatabaseStore.inMemory(decks: decks), media: media)
+        return Library.compose(store: try! DatabaseStore.inMemory(decks: decks), media: media)
     }()
 
     static var previewDecks: [Deck] {

@@ -8,17 +8,10 @@
 
         private var isWriting: Bool { self == .writing || self == .writingLatin }
 
-        static var current: Self? {
-            let environment = ProcessInfo.processInfo.environment
-            guard environment["LEXCALLI_LIBRARY"]?.hasPrefix("UITest-") == true,
-                let name = environment["LEXCALLI_EXERCISE_FIXTURE"]
-            else { return nil }
-            return Self(rawValue: name)
-        }
-
-        var engine: ExerciseEngine {
-            if isWriting { return ExerciseEngine(strategies: [WritingExercise()]) }
-            return ExerciseEngine(strategies: PickOneExercise().map { [$0] } ?? [])
+        /// Mixed offers only the fixture's exercise type, so a journey never depends on random choice.
+        var exerciseEngines: ExerciseEnginesByMode {
+            let mixed: [any ExerciseStrategy] = isWriting ? [WritingExercise()] : PickOneExercise().map { [$0] } ?? []
+            return ExerciseEnginesByMode([.flashcards: [FlashcardExercise()], .mixed: mixed])
         }
 
         func seedIfEmpty(_ library: Library) async throws {

@@ -52,15 +52,7 @@ struct PracticeSessionView: View {
             }
         }
         .task {
-            if model == nil {
-                #if DEBUG
-                    let engine = ExerciseUITestFixture.current?.engine
-                #else
-                    let engine: ExerciseEngine? = nil
-                #endif
-                model = PracticeModel(
-                    library: library, deckID: deckID, deckName: name, mode: mode, exerciseEngine: engine)
-            }
+            if model == nil { model = PracticeModel(library: library, deckID: deckID, deckName: name, mode: mode) }
             await model?.open()
         }
     }

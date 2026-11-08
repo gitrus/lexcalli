@@ -49,7 +49,6 @@ final class PracticeModel {
 
     @ObservationIgnored private let library: Library
     @ObservationIgnored private let deckID: Deck.ID
-    @ObservationIgnored private let exerciseEngine: ExerciseEngine
     @ObservationIgnored private var isOpening = false
     /// Reused when retrying a lost open.
     @ObservationIgnored private let sessionID = UUID()
@@ -61,17 +60,11 @@ final class PracticeModel {
         case save, finish, recalculate
     }
 
-    init(
-        library: Library, deckID: Deck.ID, deckName: String, mode: PracticeMode = .flashcards,
-        exerciseEngine: ExerciseEngine? = nil
-    ) {
+    init(library: Library, deckID: Deck.ID, deckName: String, mode: PracticeMode = .flashcards) {
         self.library = library
         self.deckID = deckID
         self.deckName = deckName
         self.mode = mode
-        var strategies: [any ExerciseStrategy] = [FlashcardExercise(), WritingExercise()]
-        if let choices = PickOneExercise() { strategies.append(choices) }
-        self.exerciseEngine = exerciseEngine ?? ExerciseEngine(strategies: strategies)
     }
 
     /// The store first ends and projects sessions an earlier launch left open.
@@ -91,7 +84,8 @@ final class PracticeModel {
                 return
             }
             let opened = try await library.reviews.openSession(sessionID, deck: deckID, mode: mode, at: .now)
-            let prepared = try await Self.prepareRun(opened, deck: deck, engine: exerciseEngine)
+            let prepared = try await Self.prepareRun(
+                opened, deck: deck, engine: library.exerciseEngines.engine(for: opened.session.mode))
             // Another call may have opened it meanwhile.
             guard run == nil else { return }
             self.deck = deck
@@ -212,13 +206,7 @@ final class PracticeModel {
     @concurrent private static func prepareRun(
         _ opened: OpenedSession, deck: Deck, engine: ExerciseEngine
     ) async throws -> PracticeRun {
-        guard opened.session.mode == .mixed else {
-            return PracticeRun(session: opened.session, queue: opened.queue)
-        }
         var random = SystemRandomNumberGenerator()
-        let items = opened.queue.map { card in
-            PracticeItem(card: card, prompt: engine.generate(card: card, notes: deck.notes, using: &random))
-        }
-        return try PracticeRun(session: opened.session, items: items)
+        return try PracticeRun(opened: opened, notes: deck.notes, engine: engine, using: &random)
     }
 }

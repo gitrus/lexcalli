@@ -31,6 +31,16 @@ public struct PracticeRun: Hashable, Sendable {
         self.items = queue.map { PracticeItem(card: $0, prompt: .flashcard($0)) }
     }
 
+    /// Every mode builds its run here: the engine freezes one prompt per queued card.
+    public init<R: RandomNumberGenerator>(
+        opened: OpenedSession, notes: [Note], engine: ExerciseEngine, using random: inout R
+    ) throws {
+        let items = opened.queue.map { card in
+            PracticeItem(card: card, prompt: engine.generate(card: card, notes: notes, using: &random))
+        }
+        try self.init(session: opened.session, items: items)
+    }
+
     public init(session: PracticeSession, items: [PracticeItem]) throws {
         guard items.allSatisfy({ $0.card.noteID == $0.prompt.cardID.noteID }),
             session.mode == .mixed || items.allSatisfy({ $0.prompt.kind == .flashcard })
