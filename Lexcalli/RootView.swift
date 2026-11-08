@@ -2,7 +2,7 @@ import LexcalliCore
 import SwiftUI
 
 struct RootView: View {
-    @State private var selection: AppSection = .decks
+    @State private var selection: AppSection = .practice
     @State private var path: [AppRoute] = []
     @State private var isMenuOpen = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

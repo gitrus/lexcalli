@@ -10,6 +10,7 @@ final class NavigationUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchEnvironment = ["LEXCALLI_LIBRARY": "UITest-\(UUID().uuidString)"]
         app.launch()
+        XCTAssertTrue(app.navigationBars["Practice"].waitForExistence(timeout: 10))
 
         app.buttons["Menu"].tap()
         app.buttons["Settings"].tap()
@@ -21,5 +22,9 @@ final class NavigationUITests: XCTestCase {
             app.navigationBars[page].buttons.firstMatch.tap()
             XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
         }
+
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(app.navigationBars["Practice"].waitForExistence(timeout: 10))
     }
 }
