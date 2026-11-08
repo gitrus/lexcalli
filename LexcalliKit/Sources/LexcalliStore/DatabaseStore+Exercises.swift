@@ -3,24 +3,30 @@ import GRDB
 import LexcalliCore
 
 extension DatabaseStore {
-    public func hasCardReviews(deck: Deck.ID) -> AsyncThrowingStream<Bool, any Error> {
-        observe { db in try Self.hasCardReviews(deck: deck, db) }
+    /// The Mixed unlock rule, shared by the deck summaries and by opening a Mixed session.
+    /// `deckIDExpression` is `deck.id` inside the summaries query, or `?` for a bound deck ID (bound twice).
+    static func deckHasSavedCardReviewSQL(deckIDExpression: String) -> String {
+        """
+        (
+            -- Reviewed in a session on this deck. Going by the session keeps the unlock if a note later moves.
+            EXISTS (
+                SELECT 1 FROM practice_session
+                JOIN card_review_event ON card_review_event.practice_session_id = practice_session.id
+                WHERE practice_session.deck_id = \(deckIDExpression)
+            )
+            -- Imported history has no session, so it counts for the note's current deck.
+            OR EXISTS (
+                SELECT 1 FROM note
+                JOIN card_review_event ON card_review_event.note_id = note.id
+                WHERE note.deck_id = \(deckIDExpression) AND card_review_event.practice_session_id IS NULL
+            )
+        )
+        """
     }
 
-    static func hasCardReviews(deck: Deck.ID, _ db: Database) throws -> Bool {
-        // Session membership retains the original deck's unlock if a note is later moved.
+    static func deckHasSavedCardReview(_ deck: Deck.ID, _ db: Database) throws -> Bool {
         try Bool.fetchOne(
-            db,
-            sql: """
-                SELECT EXISTS (
-                    SELECT 1 FROM practice_session p WHERE p.deck_id = ?
-                    AND EXISTS (SELECT 1 FROM card_review_event e WHERE e.practice_session_id = p.id)
-                ) OR EXISTS (
-                    SELECT 1 FROM note n WHERE n.deck_id = ?
-                    AND EXISTS (SELECT 1 FROM card_review_event e
-                        WHERE e.note_id = n.id AND e.practice_session_id IS NULL)
-                )
-                """, arguments: [deck, deck]) ?? false
+            db, sql: "SELECT \(deckHasSavedCardReviewSQL(deckIDExpression: "?"))", arguments: [deck, deck]) ?? false
     }
 
     public func record(_ event: ExerciseEvent) async throws -> RecordOutcome {

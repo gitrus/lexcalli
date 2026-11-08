@@ -11,21 +11,32 @@ final class MixedExerciseUITests: XCTestCase {
     func testMixedUnlocksAfterSavedReviewAndRelaunch() {
         var app = launch()
         showPractice(app)
-        XCTAssertFalse(app.buttons["practice.mixed.\(germanID)"].exists)
-        let deck = app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "German Basics")).firstMatch
-        XCTAssertTrue(deck.waitForExistence(timeout: 10))
-        deck.tap()
+        let flashcards = app.buttons["practice.flashcards.\(germanID)"]
+        let lockedMixed = app.buttons["practice.mixed.\(germanID)"]
+        XCTAssertTrue(flashcards.waitForExistence(timeout: 10))
+        XCTAssertTrue(lockedMixed.waitForExistence(timeout: 10))
+        XCTAssertTrue(flashcards.isEnabled)
+        XCTAssertFalse(lockedMixed.isEnabled)
+        XCTAssertLessThan(flashcards.frame.minX, lockedMixed.frame.minX)
+        XCTAssertEqual(flashcards.frame.minY, lockedMixed.frame.minY, accuracy: 1)
+        XCTAssertTrue(
+            app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "German Basics")).firstMatch.exists)
+        XCTAssertTrue(app.staticTexts["Complete a flashcard review to unlock Mixed."].firstMatch.exists)
+        screenshot("Practice modes before first review", app)
+        flashcards.tap()
         XCTAssertTrue(app.buttons["Show Answer"].waitForExistence(timeout: 10), app.debugDescription)
         app.buttons["Show Answer"].tap()
         app.buttons["Good"].tap()
         XCTAssertTrue(app.staticTexts["2 of 4"].waitForExistence(timeout: 10))
         app.navigationBars.buttons["Finish"].tap()
-        XCTAssertTrue(app.buttons["practice.mixed.\(germanID)"].waitForExistence(timeout: 10))
+        let unlocked = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: lockedMixed)
+        wait(for: [unlocked], timeout: 10)
         app.terminate()
         app = launch()
         showPractice(app)
         let mixed = app.buttons["practice.mixed.\(germanID)"]
         XCTAssertTrue(mixed.waitForExistence(timeout: 10))
+        XCTAssertTrue(mixed.isEnabled)
         mixed.tap()
         XCTAssertTrue(app.staticTexts["1 of 4"].waitForExistence(timeout: 10))
     }
@@ -124,7 +135,18 @@ final class MixedExerciseUITests: XCTestCase {
 
     func testWritingAtAccessibilitySizeKeepsConfirmationReachable() {
         let app = launch(fixture: "writingLatin", largeText: true)
-        startMixed(app)
+        showPractice(app)
+        let flashcards = app.buttons["practice.flashcards.\(fixtureID)"]
+        let mixed = app.buttons["practice.mixed.\(fixtureID)"]
+        XCTAssertTrue(flashcards.waitForExistence(timeout: 10))
+        XCTAssertTrue(flashcards.isHittable)
+        for _ in 0..<4 {
+            if mixed.isHittable { break }
+            app.swipeUp()
+        }
+        XCTAssertTrue(mixed.isHittable)
+        screenshot("Practice modes at accessibility size", app)
+        mixed.tap()
         let field = app.descendants(matching: .any)["writing.response"]
         XCTAssertTrue(field.waitForExistence(timeout: 10))
         field.tap()

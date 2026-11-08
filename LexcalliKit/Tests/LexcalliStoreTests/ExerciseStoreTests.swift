@@ -31,8 +31,8 @@ struct ExerciseStoreTests {
     func unlocksFromSavedReviewBeforeProjection(_ kind: StoreKind) async throws {
         let store = try kind.make()
         try await store.save(deck, at: now)
-        var availability = store.hasCardReviews(deck: deck.id).makeAsyncIterator()
-        #expect(try await availability.next() == false)
+        var summaries = store.deckSummaries().makeAsyncIterator()
+        #expect(try await summaries.next()?.map(\.hasCardReviews) == [false])
         await #expect(throws: ReviewStoreError.mixedLocked(deck.id)) {
             _ = try await store.openSession(UUID(), deck: deck.id, mode: .mixed, at: now)
         }
@@ -41,7 +41,8 @@ struct ExerciseStoreTests {
         _ = try await store.record(
             CardReviewEvent(
                 sessionID: session.session.id, cardID: session.queue[0], rating: .good, answeredAt: now))
-        #expect(try await availability.next() == true)
+        // The summary flips on the saved event itself, before any projection.
+        #expect(try await summaries.next()?.map(\.hasCardReviews) == [true])
         #expect(try await store.projection(of: session.queue[0]) == before)
     }
 

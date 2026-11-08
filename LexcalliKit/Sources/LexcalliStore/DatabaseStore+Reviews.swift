@@ -20,7 +20,7 @@ extension DatabaseStore {
                     recovered: ProjectionReport(needsRecalculation: try Self.pendingRepairs(db)))
             }
 
-            if mode == .mixed, try !Self.hasCardReviews(deck: deckID, db) {
+            if mode == .mixed, try !Self.deckHasSavedCardReview(deckID, db) {
                 throw ReviewStoreError.mixedLocked(deckID)
             }
             var report = ProjectionReport()

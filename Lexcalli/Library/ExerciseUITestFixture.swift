@@ -57,9 +57,6 @@
         private var didFail = false
         init(base: any ReviewStore) { self.base = base }
 
-        nonisolated func hasCardReviews(deck: Deck.ID) -> AsyncThrowingStream<Bool, any Error> {
-            base.hasCardReviews(deck: deck)
-        }
         func record(_ event: ExerciseEvent) async throws -> RecordOutcome {
             let outcome = try await base.record(event)
             if !didFail {

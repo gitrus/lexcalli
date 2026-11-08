@@ -5,6 +5,7 @@ import SwiftUI
 nonisolated struct PracticeConfiguration: Equatable {
     var controlSpacing: CGFloat = 12
     var progressFont: Font = .subheadline
+    var modeHintFont: Font = .footnote
     var failureFont: Font = .footnote
     var doneMinWidth: CGFloat = 160
     var promptFont: Font = .title2

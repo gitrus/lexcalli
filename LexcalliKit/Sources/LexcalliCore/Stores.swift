@@ -10,10 +10,12 @@ public struct DeckSummary: Identifiable, Hashable, Sendable {
     public var cardCount: Int
     /// Cards no longer new, from ended sessions or an imported history.
     public var studiedCardCount: Int
+    /// A card review is saved, whether or not it's projected yet; unlocks Mixed.
+    public var hasCardReviews: Bool
 
     public init(
         id: Deck.ID, name: String, termLanguage: Locale.Language, meaningLanguage: Locale.Language, noteCount: Int,
-        cardCount: Int, studiedCardCount: Int
+        cardCount: Int, studiedCardCount: Int, hasCardReviews: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -22,9 +24,10 @@ public struct DeckSummary: Identifiable, Hashable, Sendable {
         self.noteCount = noteCount
         self.cardCount = cardCount
         self.studiedCardCount = studiedCardCount
+        self.hasCardReviews = hasCardReviews
     }
 
-    public init(_ deck: Deck, studiedCardCount: Int = 0) {
+    public init(_ deck: Deck, studiedCardCount: Int = 0, hasCardReviews: Bool = false) {
         self.init(
             id: deck.id,
             name: deck.name,
@@ -32,7 +35,8 @@ public struct DeckSummary: Identifiable, Hashable, Sendable {
             meaningLanguage: deck.meaningLanguage,
             noteCount: deck.notes.count,
             cardCount: deck.notes.reduce(0) { $0 + $1.cards.count },
-            studiedCardCount: studiedCardCount
+            studiedCardCount: studiedCardCount,
+            hasCardReviews: hasCardReviews
         )
     }
 }
@@ -131,9 +135,6 @@ public protocol ReviewStore: Sendable {
     func openSession(
         _ id: PracticeSession.ID, deck: Deck.ID, mode: PracticeMode, at date: Date
     ) async throws -> OpenedSession
-
-    /// Current durable review availability, followed by changes (independent of scheduling projection).
-    func hasCardReviews(deck: Deck.ID) -> AsyncThrowingStream<Bool, any Error>
 
     func record(_ event: ExerciseEvent) async throws -> RecordOutcome
     /// Durable history/verification read; currently exercised by shared store and relaunch tests.

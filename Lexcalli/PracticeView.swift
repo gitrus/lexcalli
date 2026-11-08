@@ -2,12 +2,13 @@ import LexcalliCore
 import SwiftUI
 
 struct PracticeView: View {
+    let open: (AppRoute) -> Void
     @Environment(\.library) private var library
     @State private var decks: Observed<[DeckSummary]> = .loading
 
     var body: some View {
         List(decks.value ?? []) { deck in
-            PracticeDeckSection(deck: deck)
+            PracticeDeckSection(deck: deck, open: open)
         }
         .overlay {
             switch decks {
@@ -30,44 +31,57 @@ struct PracticeView: View {
     }
 }
 
-/// The familiar deck tap still starts Flashcards; Mixed is a separate history-gated entry.
+/// Deck information stays separate from the explicit mode choices; saved history unlocks Mixed.
 private struct PracticeDeckSection: View {
     let deck: DeckSummary
-    @Environment(\.library) private var library
+    let open: (AppRoute) -> Void
     @Environment(\.practice) private var configuration
-    @State private var availability: Observed<Bool> = .loading
-    @State private var observationID = 0
 
     var body: some View {
         Section {
-            NavigationLink(value: AppRoute.practice(deck: deck.id, name: deck.name)) {
-                DeckRow(progressOf: deck)
+            DeckRow(progressOf: deck)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: configuration.controlSpacing) { modeButtons }
+                    .fixedSize(horizontal: true, vertical: false)
+                VStack(alignment: .leading, spacing: configuration.controlSpacing) { modeButtons }
             }
-            switch availability {
-            case .value(true):
-                NavigationLink(value: AppRoute.mixedPractice(deck: deck.id, name: deck.name)) {
-                    Label("Mixed — \(deck.name)", systemImage: "shuffle")
-                }
-                .accessibilityIdentifier("practice.mixed.\(deck.id.uuidString)")
-            case .loading:
-                ProgressView().accessibilityLabel("Checking Mixed availability")
-            case .failed(let message):
-                VStack(alignment: .leading) {
-                    Text("Mixed Unavailable")
-                    Text(message).font(configuration.failureFont)
-                    Button("Try Again") { observationID += 1 }
-                }
-            case .value(false):
-                EmptyView()
+            .labelStyle(.titleAndIcon)
+            .buttonStyle(.glass)
+            .controlSize(configuration.exerciseControlSize)
+        } footer: {
+            if !deck.hasCardReviews {
+                Text("Complete a flashcard review to unlock Mixed.")
+                    .font(configuration.modeHintFont)
             }
         }
-        .observe({ library.reviews.hasCardReviews(deck: deck.id) }, id: observationID, into: $availability)
+    }
+
+    @ViewBuilder
+    private var modeButtons: some View {
+        Button {
+            open(.practice(deck: deck.id, name: deck.name))
+        } label: {
+            Label("Flashcards", systemImage: "rectangle.on.rectangle")
+        }
+        .accessibilityLabel("Flashcards — \(deck.name)")
+        .accessibilityIdentifier("practice.flashcards.\(deck.id.uuidString)")
+
+        Button {
+            open(.mixedPractice(deck: deck.id, name: deck.name))
+        } label: {
+            Label("Mixed", systemImage: "shuffle")
+        }
+        .disabled(!deck.hasCardReviews)
+        .accessibilityLabel("Mixed — \(deck.name)")
+        .accessibilityHint(deck.hasCardReviews ? "" : "Complete a flashcard review to unlock Mixed.")
+        .accessibilityIdentifier("practice.mixed.\(deck.id.uuidString)")
     }
 }
 
 #Preview {
-    NavigationStack {
-        PracticeView()
+    @Previewable @State var path: [AppRoute] = []
+    NavigationStack(path: $path) {
+        PracticeView { path.append($0) }
             .appRouteDestinations()
     }
     .environment(\.library, SampleLibrary.preview)

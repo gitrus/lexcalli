@@ -57,7 +57,8 @@ struct RootView: View {
     private var sectionContent: some View {
         switch selection {
         case .decks: DecksView()
-        case .practice: PracticeView()
+        // A double tap must not push a second session, which would end the first one beneath it.
+        case .practice: PracticeView { route in if path.last != route { path.append(route) } }
         case .settings: SettingsView()
         }
     }

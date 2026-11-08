@@ -29,10 +29,6 @@ final class ReferenceStore: TestableStore {
         observe { .deck(id, $0) }
     }
 
-    func hasCardReviews(deck: Deck.ID) -> AsyncThrowingStream<Bool, any Error> {
-        observe { .reviews(deck, $0) }
-    }
-
     @concurrent func record(_ event: ExerciseEvent) async throws -> RecordOutcome {
         let payload = try ExerciseEventPayload(event).encoded()
         return try state.withLock { state in
@@ -170,7 +166,6 @@ final class ReferenceStore: TestableStore {
 }
 
 private enum Observer: Sendable {
-    case reviews(Deck.ID, AsyncThrowingStream<Bool, any Error>.Continuation, last: Bool? = nil)
     case summaries(AsyncThrowingStream<[DeckSummary], any Error>.Continuation, last: [DeckSummary]? = nil)
     case deck(Deck.ID, AsyncThrowingStream<Deck?, any Error>.Continuation, last: Deck?? = nil)
 }
@@ -272,16 +267,14 @@ private struct State: Sendable {
 
     mutating func notifyObserver(_ id: UUID) {
         switch observers[id] {
-        case .reviews(let deck, let continuation, let last):
-            let value = hasCardReviews(deck: deck)
-            guard value != last else { return }
-            observers[id] = .reviews(deck, continuation, last: value)
-            continuation.yield(value)
         case .summaries(let continuation, let last):
             let summaries = decks.values.map { deck in
                 DeckSummary(
                     deck,
-                    studiedCardCount: deck.notes.flatMap(\.cards).count { projections[$0.id]?.scheduling.state != .new }
+                    studiedCardCount: deck.notes.flatMap(\.cards).count {
+                        projections[$0.id]?.scheduling.state != .new
+                    },
+                    hasCardReviews: hasCardReviews(deck: deck.id)
                 )
             }
             .sorted {
