@@ -30,7 +30,7 @@ There are two separate durable review logs.
 - **Card review log:** part of the Anki-compatible foundation; records *card review events*: per-card ratings used for scheduling and FSRS.
 - **Exercise review log:** part of the Lexcalli learning extensions; records immutable *exercise review events* with kind/version, confirmation time, assessed card/direction, prompt/expected-answer snapshots, raw response or selected option, and ordered option references. Writing stores no automatic grade.
 
-The data layer stores both histories separately. Exercise-only answers currently do not create card reviews or scheduling credit. The [learning engine](learning-engine.md#review-logs) leaves future links between the logs to an explicit policy.
+The data layer stores both histories separately. Exercise-only answers currently do not create card reviews or scheduling credit. The [learning engine](learning_engine.md#review-logs) leaves future links between the logs to an explicit policy.
 
 ### Application and backend
 
@@ -40,7 +40,7 @@ The data layer stores both histories separately. Exercise-only answers currently
 
 ## Not decided yet
 
-- Persistence beyond content, cards, practice sessions, card/exercise events (see [data management](data-management.md)), sync conflicts, and offline-first implementation.
+- Persistence beyond content, cards, practice sessions, card/exercise events (see [data management](data_management.md)), sync conflicts, and offline-first implementation.
 - AnkiWeb / two-way sync (not an initial requirement).
 - Storage representation for configurable exercise types and future links between the two review logs.
 - Media conversion/storage strategy.

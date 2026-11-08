@@ -39,13 +39,13 @@ CI should build and run relevant tests, **fail if expected tests were not actual
 
 ### Non-negotiable data invariants
 
-- Keep [card and exercise review logs](data-layering.md#review-logs) distinct; apply the [exercise-to-card review rules](learning-engine.md#relationship-to-fsrs) when generating card review events.
+- Keep [card and exercise review logs](data_layering.md#review-logs) distinct; apply the [exercise-to-card review rules](learning_engine.md#relationship-to-fsrs) when generating card review events.
 - User-generated data is the most important part, so:
   - Import/export must not silently discard supported card content, media, identifiers needed for compatibility, or review history.
   - Interruptions, app restarts, upgrades, and retries must not silently duplicate or erase learning progress.
 - Backend-supplied exercise types must respect explicit client capabilities and versioned contracts once that interface exists.
 
-These requirements are specified in more detail by the product and learning-engine documents. Add regression fixtures when a bug reveals a missing invariant.
+These requirements are specified in more detail by the [product](product.md), [learning engine](learning_engine.md), and [learning use cases](learning_usecases.md) documents. Add regression fixtures when a bug reveals a missing invariant.
 
 ## Delivery and release
 
@@ -59,8 +59,8 @@ These requirements are specified in more detail by the product and learning-engi
 
 The first target, a device-installable build that imports a small Anki deck with media, studies it, and preserves history after relaunch, is split in two:
 
-1. **Milestone 1: study stored decks and keep progress.** Built and verified locally: fixed flashcard queue, rating, one durable card review event per answer (including retries), FSRS-6 projection on finish and on the next open, media from app-managed files, and migrations that never leave a half-migrated or empty library. Decks come from the bundled starter deck, or the sample decks in UI tests. Remaining: a device run, a manual accessibility pass, a store-level termination test, and a previous-schema fixture once a second migration exists.
-2. **Milestone 2: import an Anki deck with media.** Only archive unpacking is built; mapping, the import store, media and progress import, the import UI, and recovery remain. See [import](data-management.md#import).
+1. **Milestone 1: study stored decks and keep progress.** Built and verified locally: fixed flashcard queue, rating, one durable card review event per answer (including retries), FSRS-6 projection on finish and on the next open, media from app-managed files, and migrations that never leave a half-migrated or empty library, with upgrades tested from a frozen copy of the first shipped schema. Decks come from the bundled starter deck, or the sample decks in UI tests. Remaining: a device run, a manual accessibility pass, and a store-level termination test.
+2. **Milestone 2: import an Anki deck with media.** Only archive unpacking is built; mapping, the import store, media and progress import, the import UI, and recovery remain. See [import](data_management.md#import).
 
 Neither is a claim that CI or a TestFlight configuration exists.
 

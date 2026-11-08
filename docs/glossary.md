@@ -1,43 +1,44 @@
 # Glossary
 
 Shared terms used across the docs. Other documents link here instead of redefining a term.
-Storage mechanics (projector, checkpoint, outbox) are described where they are used, in [data management](data-management.md).
-Terms marked *(planned)* have no implementation yet.
+Storage mechanics (projector `Projector`, checkpoint `ProjectionCheckpoint`, outbox) are described where they are used, in [data management](data_management.md).
+Terms marked *(planned)* have no implementation yet. A name in parentheses is the type that implements the term, in `LexcalliCore` unless noted.
 
 ## Content
 
 - **Learning content:** words, collocations, expressions, meanings, and example sentences, with supporting images and audio.
-- **Note:** one item of learning content: a word, a collocation, or a phrase such as *πώς σε λένε;*. Its fields hold the term, its meaning, and supporting data. The app shows notes as *words*.
+- **Note** (`Note`): one item of learning content: a word, a collocation, or a phrase such as *πώς σε λένε;*. Its fields hold the term, its meaning, and supporting data. The app shows notes as *words*.
 - **Note type** *(planned)*: defines a note's fields and the cards generated from it. Today every note has the same fixed fields.
-- **Card:** a study prompt generated from a note in one direction (`CardDirection`): forward (term → meaning) or reverse (meaning → term).
-- **Deck:** a group of notes; each note belongs to exactly one deck. It is the unit of import and export, and the pool that exercises draw distractors from.
+- **Card** (`Card`): a study prompt generated from a note in one direction (`CardDirection`): forward (term → meaning) or reverse (meaning → term).
+- **Deck** (`Deck`; `DeckSummary` in lists): a group of notes; each note belongs to exactly one deck. It is the unit of import and export, and the pool that exercises draw distractors from.
 - **Topic:** a group of related notes for practice, possibly spanning decks, for example *greetings* or a confusable pair. Likely stored as tags; not built yet.
-- **Collection:** all of a learner's data. In the app, a `Library` gives views access to it (its stores and media).
-- **Media:** images and audio referenced by notes.
+- **Collection:** all of a learner's data. In the app, a `Library` gives views access to it through the store protocols (`DeckStore`, `ReviewStore`) and the media library (`MediaLibrary`).
+- **Media** (`MediaReference`): images and audio referenced by notes, stored by content hash in the media library (`MediaLibrary`).
 
 ## Practice
 
-- **Practice mode:** Flashcards (the default) or Mixed (a choice among eligible Flashcards, writing and Pick-one exercises). Mixed is unlocked by saved flashcard history, not scheduling state.
-- **Practice session:** one period of practice, stored with its mode and status, *open* or *ended*. It groups the card and exercise review events recorded during it.
-- **Study queue:** the cards a practice session will show, built once when it opens, one card per note.
-- **Exercise type**: a kind of interaction: flashcard, Pick-one, writing. Its interaction and validation rules (for example, a configurable option count and same-deck distractors for Pick-one) belong to the type.
-- **Exercise**: an exercise type applied to one or more cards when shown, for example a Pick-one exercise on a reverse card. Its prompt and expected answer are frozen for the current practice item; confirming it stores an immutable attempt.
-- **Exercise attempt**: the learner's confirmed response to an exercise, retained with what was shown. Writing stores the raw text; Pick-one stores the selected option.
+- **Practice mode** (`PracticeMode`): Flashcards (the default) or Mixed (a choice among eligible Flashcards, writing and Pick-one exercises). Mixed is unlocked per deck by a saved card review, not by scheduling state.
+- **Practice session** (`PracticeSession`): one period of practice, stored with its mode and status (`PracticeSession.Status`), *open* or *ended*. It groups the card and exercise review events recorded during it.
+- **Study queue** (`StudyQueue`): the cards a practice session will show, built once when it opens, one card per note.
+- **Practice run** (`PracticeRun`): a session's queue paired with the exercise frozen for each card; each entry is a practice item (`PracticeItem`).
+- **Exercise type** (`ExerciseKind`): a kind of interaction: flashcard, Pick-one, writing. Its interaction and validation rules (for example, the option count and same-deck distractors for Pick-one) belong to the type, implemented as an exercise strategy (`ExerciseStrategy`: `FlashcardExercise`, `PickOneExercise`, `WritingExercise`). The exercise engine (`ExerciseEngine`) picks among the strategies of a practice mode.
+- **Exercise** (`ExercisePrompt`): an exercise type applied to one or more cards when shown, for example a Pick-one exercise on a reverse card. Its prompt and expected answer are frozen for the current practice item; confirming it stores an immutable attempt.
+- **Exercise attempt** (`ExerciseAttempt`): the learner's confirmed response to an exercise, retained with what was shown. Writing stores the raw text; Pick-one stores the selected option.
 - **Scheduled review:** a card review that contributes to future scheduling. Not every exercise attempt is a scheduled review.
 
 ## Scheduling and history
 
-- **Card review event:** the record of one scheduled review, in the card review log.
-- **Exercise review event**: the immutable record of one exercise attempt, in the exercise review log.
-- **Card review log** and **exercise review log**: the two separate append-only logs; see [data layering](data-layering.md#review-logs).
-- **Rating:** the learner's grade for a card review, 1–4 (Again, Hard, Good, Easy).
-- **Card state:** new, learning, review, or relearning (0–3).
-- **Scheduling state:** a card's FSRS memory state and due date. It must stay consistent with the card's review events.
-- **Baseline:** a card's starting scheduling state, where projection and recalculation begin: a new card's state, or (planned) the state imported from Anki together with the imported events it already reflects.
+- **Card review event** (`CardReviewEvent`): the record of one scheduled review, in the card review log.
+- **Exercise review event** (`ExerciseEvent`): the immutable record of one exercise attempt, in the exercise review log.
+- **Card review log** and **exercise review log**: the two separate append-only logs, both written through the review store (`ReviewStore`); see [data layering](data_layering.md#review-logs).
+- **Rating** (`Rating`): the learner's grade for a card review, 1–4 (Again, Hard, Good, Easy).
+- **Card state** (`CardState`): new, learning, review, or relearning (0–3).
+- **Scheduling state** (`CardScheduling`): a card's FSRS memory state and due date. It must stay consistent with the card's review events.
+- **Baseline** (`SchedulingBaseline`): a card's starting scheduling state, where projection and recalculation begin: a new card's state, or (planned) the state imported from Anki together with the imported events it already reflects.
 
 ## Identity and lifecycle
 
-- **Idempotency key:** a client-generated UUID on every review event, so a retried write is recorded once.
+- **Idempotency key** (`idempotencyKey` on each event): a client-generated UUID on every review event, so a retried write is recorded once.
 - **Tombstone** *(planned)*: a marker left by deleted content, so export and sync can propagate the deletion.
 
 ## Anki mapping
