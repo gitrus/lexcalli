@@ -4,6 +4,8 @@ import SwiftUI
 /// for example `.environment(\.practice.controlSpacing, 16)`.
 nonisolated struct PracticeConfiguration: Equatable {
     var controlSpacing: CGFloat = 12
+    var compactDeckSectionSpacing: CGFloat = 12
+    var denseDeckSectionSpacing: CGFloat = 8
     var progressFont: Font = .subheadline
     var modeHintFont: Font = .footnote
     var failureFont: Font = .footnote

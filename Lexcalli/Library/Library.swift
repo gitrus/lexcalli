@@ -26,7 +26,7 @@ nonisolated struct Library: Sendable {
         return Library(decks: store, reviews: reviews, media: media, exerciseEngines: exerciseEngines)
     }
 
-    /// Fills an empty library as the launch asks; a starter deck that fails to load never blocks opening.
+    /// Fills an empty library as the launch asks; starter decks that fail to load never block opening.
     func seed(for launch: LaunchConfiguration) async throws {
         #if DEBUG
             if let fixture = launch.exerciseFixture { return try await fixture.seedIfEmpty(self) }
@@ -34,7 +34,7 @@ nonisolated struct Library: Sendable {
         if launch.seedsSamples {
             try await SampleLibrary.seedIfEmpty(self)
         } else {
-            try? await StarterDeck.addIfNew(to: self, named: launch.libraryName)
+            try? await StarterDecks.addNew(to: self, named: launch.libraryName)
         }
     }
 
