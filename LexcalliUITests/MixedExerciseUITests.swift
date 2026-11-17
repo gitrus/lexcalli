@@ -58,7 +58,7 @@ final class MixedExerciseUITests: XCTestCase {
         // Keyboard submission uses exactly the same confirmation path as the button.
         field.typeText("\n")
         XCTAssertTrue(app.buttons["Try Again"].waitForExistence(timeout: 10), app.debugDescription)
-        XCTAssertFalse(field.isEnabled)
+        XCTAssertFalse(field.isEnabled, app.debugDescription)
         XCTAssertEqual(field.value as? String, "  wrong answer ")
         XCTAssertFalse(app.buttons["Menu"].exists)
         XCTAssertFalse(app.buttons["Continue"].exists)
