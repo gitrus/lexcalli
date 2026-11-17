@@ -26,6 +26,39 @@ struct CardTests {
 struct StudyQueueTests {
     let now = Date(timeIntervalSince1970: 1_800_000_000)
 
+    @Test func remainingCapacityStaysWithinRoundLimit() {
+        #expect(StudyQueue.remainingCapacity(afterAnswering: Int.min) == 22)
+        #expect(StudyQueue.remainingCapacity(afterAnswering: -1) == 22)
+        #expect(StudyQueue.remainingCapacity(afterAnswering: 0) == 22)
+        #expect(StudyQueue.remainingCapacity(afterAnswering: 1) == 21)
+        #expect(StudyQueue.remainingCapacity(afterAnswering: 21) == 1)
+        #expect(StudyQueue.remainingCapacity(afterAnswering: 22) == 0)
+        #expect(StudyQueue.remainingCapacity(afterAnswering: 44) == 0)
+        #expect(StudyQueue.remainingCapacity(afterAnswering: Int.max) == 0)
+    }
+
+    @Test(arguments: [0, 1, 21, 22, 23, 44])
+    func capsRoundsAfterOrderingAndDeduplicating(_ count: Int) {
+        let notes = (0..<count).map { _ in UUID() }
+        let candidates = notes.enumerated().flatMap { index, note in
+            [CardDirection.forward, .reverse].map { direction in
+                QueueCandidate(
+                    cardID: .init(noteID: note, direction: direction),
+                    due: now.addingTimeInterval(Double(index - count)))
+            }
+        }
+        let expected = notes.prefix(22).map { Card.ID(noteID: $0, direction: .forward) }
+
+        #expect(StudyQueue.build(from: Array(candidates.reversed()), now: now) == expected)
+    }
+
+    @Test(arguments: [0, -1, Int.min])
+    func nonPositiveLimitsReturnAnEmptyQueue(_ limit: Int) {
+        let candidate = QueueCandidate(cardID: .init(noteID: UUID(), direction: .forward), due: now)
+
+        #expect(StudyQueue.build(from: [candidate], now: now, limit: limit).isEmpty)
+    }
+
     @Test func takesDueCardsEarliestFirst() {
         let notes = (0..<3).map { _ in UUID() }
         let candidates = [

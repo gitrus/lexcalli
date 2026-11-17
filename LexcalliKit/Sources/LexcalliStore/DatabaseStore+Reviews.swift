@@ -171,7 +171,8 @@ extension DatabaseStore {
             .fetchAll(db)
             .filter { !pending.contains($0.cardID) && !answered.contains($0.cardID.noteID) }
             .map { QueueCandidate(cardID: $0.cardID, due: $0.scheduling.due) }
-        return StudyQueue.build(from: candidates, now: date)
+        return StudyQueue.build(
+            from: candidates, now: date, limit: StudyQueue.remainingCapacity(afterAnswering: answered.count))
     }
 
     static func fetchSession(_ id: PracticeSession.ID, _ db: Database) throws -> PracticeSession? {
