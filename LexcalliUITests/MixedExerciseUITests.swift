@@ -279,6 +279,131 @@ final class MixedExerciseUITests: XCTestCase {
         XCTAssertTrue((correct.value as? String ?? "").contains("Correct answer"))
     }
 
+    func testMatchPairsPairingIsPrivateUntilSavedAndRetryKeepsIt() {
+        let app = launch(fixture: "matchPairs", failOnce: true)
+        startMixed(app)
+        XCTAssertTrue(app.staticTexts["Match 4 pairs"].waitForExistence(timeout: 10), app.debugDescription)
+        let lefts = matchItems(app, side: "left")
+        let rights = matchItems(app, side: "right")
+        XCTAssertEqual(lefts.count, 4)
+        XCTAssertEqual(rights.count, 4)
+        XCTAssertFalse(app.buttons["Check Answer"].isEnabled)
+        let ids = lefts.allElementsBoundByIndex.map { $0.identifier.replacingOccurrences(of: "match.left.", with: "") }
+        let left = { (id: String) in app.buttons["match.left.\(id)"] }
+        let right = { (id: String) in app.buttons["match.right.\(id)"] }
+        for item in lefts.allElementsBoundByIndex + rights.allElementsBoundByIndex {
+            XCTAssertGreaterThanOrEqual(item.frame.height, 44)
+            XCTAssertEqual(item.value as? String, "Not paired")
+        }
+
+        left(ids[0]).tap()
+        XCTAssertEqual(left(ids[0]).value as? String, "Selected")
+        left(ids[0]).tap()
+        XCTAssertEqual(left(ids[0]).value as? String, "Not paired")
+        // Two crossed pairs, made from either side, and two right ones.
+        left(ids[0]).tap()
+        right(ids[1]).tap()
+        XCTAssertEqual(left(ids[0]).value as? String, "Pair 1, with \(right(ids[1]).label)")
+        XCTAssertEqual(right(ids[1]).value as? String, "Pair 1, with \(left(ids[0]).label)")
+        right(ids[0]).tap()
+        left(ids[1]).tap()
+        left(ids[2]).tap()
+        right(ids[2]).tap()
+        XCTAssertFalse(app.buttons["Check Answer"].isEnabled)
+        // A paired item breaks its pair when tapped, and pairs again from the other column.
+        left(ids[2]).tap()
+        XCTAssertEqual(left(ids[2]).value as? String, "Selected")
+        XCTAssertEqual(right(ids[2]).value as? String, "Not paired")
+        right(ids[2]).tap()
+        left(ids[3]).tap()
+        right(ids[3]).tap()
+        XCTAssertTrue(app.buttons["Check Answer"].isEnabled)
+        XCTAssertFalse(app.staticTexts["Correct pair"].exists)
+        for item in lefts.allElementsBoundByIndex {
+            XCTAssertFalse((item.value as? String ?? "").contains("Correct"))
+        }
+        screenshot("Match pairs before checking", app)
+
+        app.buttons["Check Answer"].tap()
+        XCTAssertTrue(app.buttons["Try Again"].waitForExistence(timeout: 10), app.debugDescription)
+        XCTAssertFalse(app.buttons["Continue"].exists)
+        XCTAssertFalse(app.staticTexts["2 of 4 pairs correct"].exists)
+        for item in lefts.allElementsBoundByIndex {
+            XCTAssertFalse(item.isEnabled)
+            XCTAssertTrue((item.value as? String ?? "").hasPrefix("Pair "))
+        }
+        app.buttons["Try Again"].tap()
+        XCTAssertTrue(app.staticTexts["2 of 4 pairs correct"].waitForExistence(timeout: 10), app.debugDescription)
+        let results = app.descendants(matching: .any)
+        XCTAssertEqual(results.matching(NSPredicate(format: "value == %@", "Correct pair")).count, 2)
+        XCTAssertEqual(results.matching(NSPredicate(format: "value BEGINSWITH %@", "Not a pair. Correct: ")).count, 2)
+        XCTAssertEqual(lefts.count, 0)
+        assertMatchPairsAudioIsCentered(app, ids: ids)
+        screenshot("Match pairs result", app)
+        app.buttons["Continue"].tap()
+        XCTAssertTrue(app.staticTexts["2 of 4"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Match 4 pairs"].exists)
+        XCTAssertFalse(app.buttons["Check Answer"].isEnabled)
+    }
+
+    func testMatchPairsAtAccessibilitySizeStacksColumnsAndKeepsActionsReachable() {
+        let app = launch(fixture: "matchPairs", largeText: true)
+        startMixed(app)
+        let lefts = matchItems(app, side: "left")
+        XCTAssertTrue(lefts.firstMatch.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Words"].exists || app.staticTexts["Meanings"].exists)
+        XCTAssertGreaterThan(matchItems(app, side: "right").firstMatch.frame.minY, lefts.firstMatch.frame.maxY)
+        let ids = lefts.allElementsBoundByIndex.map { $0.identifier.replacingOccurrences(of: "match.left.", with: "") }
+        for id in ids {
+            for item in [app.buttons["match.left.\(id)"], app.buttons["match.right.\(id)"]] {
+                reveal(item, in: app)
+                item.tap()
+            }
+        }
+        let check = app.buttons["Check Answer"]
+        XCTAssertTrue(check.isHittable)
+        XCTAssertTrue(check.isEnabled)
+        screenshot("Match pairs stacked at accessibility size", app)
+        check.tap()
+        let heading = app.staticTexts["4 of 4 pairs correct"]
+        XCTAssertTrue(heading.waitForExistence(timeout: 10), app.debugDescription)
+        let visible = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hittable == true"), object: heading)
+        wait(for: [visible], timeout: 10)
+        XCTAssertTrue(app.buttons["Continue"].isHittable)
+        screenshot("Match pairs result at accessibility size", app)
+        assertMatchPairsAudioIsCentered(app, ids: ids)
+    }
+
+    private func assertMatchPairsAudioIsCentered(_ app: XCUIApplication, ids: [String]) {
+        for id in ids {
+            let row = app.descendants(matching: .any)["match.result.\(id)"].firstMatch
+            reveal(row, in: app)
+            let audio = row.buttons.firstMatch
+            screenshot("Match-pairs audio geometry: \(id)", app)
+            let geometry =
+                "row \(id) \(row.frame), audio \(audio.frame), scroll \(app.scrollViews.firstMatch.frame), "
+                + "Continue \(app.buttons["Continue"].frame)"
+            XCTAssertTrue(audio.exists, "Missing speaker: \(geometry)")
+            XCTAssertTrue(audio.isEnabled, "Disabled speaker: \(geometry)")
+            XCTAssertTrue(audio.isHittable, "Unreachable speaker: \(geometry)")
+            XCTAssertEqual(audio.frame.midY, row.frame.midY, accuracy: 1, geometry)
+            XCTAssertGreaterThanOrEqual(audio.frame.width, 44)
+            XCTAssertGreaterThanOrEqual(audio.frame.height, 44)
+        }
+    }
+
+    private func matchItems(_ app: XCUIApplication, side: String) -> XCUIElementQuery {
+        app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "match.\(side)."))
+    }
+
+    /// Stacked columns put a pair's two items far apart, so look below first and then above.
+    private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
+        let scrollView = app.scrollViews.firstMatch
+        for _ in 0..<4 where !element.isHittable { scrollView.swipeUp(velocity: .slow) }
+        for _ in 0..<8 where !element.isHittable { scrollView.swipeDown(velocity: .slow) }
+        XCTAssertTrue(element.isHittable, element.debugDescription)
+    }
+
     func testInsufficientChoicesUseFlashcardFallback() {
         let app = launch(fixture: "smallDeck")
         startMixed(app)

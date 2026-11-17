@@ -17,6 +17,8 @@ REQUIRED_TESTS = (
     "MixedExerciseUITests/testPickOneWrongAnswerAtAccessibilitySizeShowsCorrectFeedback()",
     "MixedExerciseUITests/testPickOneReverseAudioAppearsOnlyAfterSavedRetry()",
     "MixedExerciseUITests/testPickOneReverseAtAccessibilitySizeKeepsAnswerAudioReachable()",
+    "MixedExerciseUITests/testMatchPairsPairingIsPrivateUntilSavedAndRetryKeepsIt()",
+    "MixedExerciseUITests/testMatchPairsAtAccessibilitySizeStacksColumnsAndKeepsActionsReachable()",
     "MixedExerciseUITests/testInsufficientChoicesUseFlashcardFallback()",
     "MixedExerciseUITests/testWritingAtAccessibilitySizeKeepsConfirmationReachable()",
     "StudyRelaunchUITests/testSpeakerPressKeepsCircularTargetAndDoesNotFlipCard()",

@@ -4,7 +4,7 @@
 
     /// Deterministic test dependencies, restricted to isolated UITest libraries; never learner settings.
     nonisolated enum ExerciseUITestFixture: String {
-        case writing, writingLatin, pickOne, pickOneReverse, smallDeck
+        case writing, writingLatin, pickOne, pickOneReverse, matchPairs, smallDeck
 
         private var isWriting: Bool { self == .writing || self == .writingLatin }
 
@@ -13,6 +13,7 @@
             let mixed: [any ExerciseStrategy] =
                 switch self {
                 case .writing, .writingLatin: [WritingExercise()]
+                case .matchPairs: MatchPairsExercise().map { [$0] } ?? []
                 case .pickOne, .pickOneReverse, .smallDeck: PickOneExercise().map { [$0] } ?? []
                 }
             return ExerciseEnginesByMode([.flashcards: [FlashcardExercise()], .mixed: mixed])

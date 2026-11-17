@@ -84,6 +84,8 @@ struct PracticeSessionView: View {
                         WritingExerciseView(prompt: prompt, model: model).id(prompt.cardID)
                     case .pickOne(let prompt):
                         PickOneExerciseView(prompt: prompt, model: model).id(prompt.cardID)
+                    case .matchPairs(let prompt):
+                        MatchPairsExerciseView(prompt: prompt, model: model).id(prompt.cardID)
                     case nil:
                         ProgressView()
                     }
@@ -111,7 +113,7 @@ struct PracticeSessionView: View {
                     VStack {
                         Text("Exercises completed: \(model.exercisesCompleted)")
                         Text("Flashcards reviewed: \(reviewed)")
-                        Text("Writing and Pick-one do not change scheduling yet. Some notes may still be due.")
+                        Text("Exercises do not change scheduling yet. Some notes may still be due.")
                     }
                 } else {
                     Text("^[\(reviewed) card](inflect: true) reviewed.")

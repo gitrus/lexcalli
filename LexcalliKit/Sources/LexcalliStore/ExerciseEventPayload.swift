@@ -20,10 +20,12 @@ struct ExerciseEventPayload: Codable {
     enum Attempt: Codable {
         case writing(prompt: Writing, response: String)
         case pickOne(prompt: PickOne, selected: UUID)
+        case matchPairs(prompt: MatchPairs, pairing: [Pair])
 
-        enum CodingKeys: String, CodingKey { case writing, pickOne }
+        enum CodingKeys: String, CodingKey { case writing, pickOne, matchPairs }
         enum WritingCodingKeys: String, CodingKey { case prompt, response }
         enum PickOneCodingKeys: String, CodingKey { case prompt, selected }
+        enum MatchPairsCodingKeys: String, CodingKey { case prompt, pairing }
     }
 
     struct CardReference: Codable {
@@ -56,6 +58,29 @@ struct ExerciseEventPayload: Codable {
 
         enum CodingKeys: String, CodingKey { case noteID, answer }
     }
+
+    struct MatchPairs: Codable {
+        var cardID: CardReference
+        var left: [Item]
+        var right: [Item]
+
+        enum CodingKeys: String, CodingKey { case cardID, left, right }
+    }
+
+    struct Item: Codable {
+        var noteID: UUID
+        var text: String
+
+        enum CodingKeys: String, CodingKey { case noteID, text }
+    }
+
+    /// Stored in left-column order, so equal pairings are equal bytes.
+    struct Pair: Codable {
+        var left: UUID
+        var right: UUID
+
+        enum CodingKeys: String, CodingKey { case left, right }
+    }
 }
 
 extension ExerciseEventPayload {
@@ -75,6 +100,15 @@ extension ExerciseEventPayload {
                         expectedAnswer: prompt.expectedAnswer,
                         options: prompt.options.map { Option(noteID: $0.noteID, answer: $0.answer) }),
                     selected: selected)
+            case .matchPairs(let prompt, let pairing):
+                .matchPairs(
+                    prompt: MatchPairs(
+                        cardID: CardReference(prompt.cardID),
+                        left: prompt.left.map { Item(noteID: $0.noteID, text: $0.text) },
+                        right: prompt.right.map { Item(noteID: $0.noteID, text: $0.text) }),
+                    pairing: prompt.left.compactMap { item in
+                        pairing[item.noteID].map { Pair(left: item.noteID, right: $0) }
+                    })
             }
         self.init(
             idempotencyKey: event.idempotencyKey, sessionID: event.sessionID, version: Self.version,
@@ -117,6 +151,14 @@ extension ExerciseEventPayload {
                     cardID: card, question: prompt.question, expectedAnswer: prompt.expectedAnswer,
                     options: prompt.options.map { PickOneOption(noteID: $0.noteID, answer: $0.answer) }),
                 selected: selected)
+        case .matchPairs(let stored, let pairs):
+            guard let card = stored.cardID.domain else { return nil }
+            let prompt = MatchPairsPrompt(
+                cardID: card, left: stored.left.map { MatchPairsItem(noteID: $0.noteID, text: $0.text) },
+                right: stored.right.map { MatchPairsItem(noteID: $0.noteID, text: $0.text) })
+            let pairing = Dictionary(pairs.map { ($0.left, $0.right) }, uniquingKeysWith: { first, _ in first })
+            guard pairing.count == pairs.count, prompt.accepts(pairing) else { return nil }
+            mapped = .matchPairs(prompt: prompt, pairing: pairing)
         }
         return ExerciseEvent(
             idempotencyKey: idempotencyKey, sessionID: sessionID, answeredAt: answeredAt, attempt: mapped)

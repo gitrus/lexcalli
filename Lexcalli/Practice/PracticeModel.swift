@@ -119,7 +119,8 @@ final class PracticeModel {
         let attempt: PendingAttempt?
         switch response {
         case .flashcard(let rating): attempt = run.answer(rating, at: .now).map(PendingAttempt.card)
-        case .writing, .pickOne: attempt = run.answerExercise(response, at: .now).map(PendingAttempt.exercise)
+        case .writing, .pickOne, .matchPairs:
+            attempt = run.answerExercise(response, at: .now).map(PendingAttempt.exercise)
         }
         guard let attempt else { return }
         // Kept before awaiting, so a retry resends exactly this event.
