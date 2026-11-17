@@ -17,6 +17,22 @@ struct ExerciseEventPayloadTests {
     static let frozenPickOne =
         #"{"answeredAt":814692800.1229999,"attempt":{"pickOne":{"prompt":{"cardID":{"direction":0,"noteID":"11111111-1111-1111-1111-111111111111"},"expectedAnswer":"house","options":[{"answer":"tree","noteID":"22222222-2222-2222-2222-222222222222"},{"answer":"house","noteID":"11111111-1111-1111-1111-111111111111"}],"question":"Haus"},"selected":"22222222-2222-2222-2222-222222222222"}},"idempotencyKey":"55555555-5555-5555-5555-555555555555","sessionID":"33333333-3333-3333-3333-333333333333","version":1}"#
 
+    // Captured from the first Match pairs build; never edit this string.
+    static let frozenMatchPairs =
+        #"{"answeredAt":814692800.1229999,"attempt":{"matchPairs":{"pairing":[{"left":"11111111-1111-1111-1111-111111111111","right":"22222222-2222-2222-2222-222222222222"},{"left":"22222222-2222-2222-2222-222222222222","right":"11111111-1111-1111-1111-111111111111"}],"prompt":{"cardID":{"direction":0,"noteID":"11111111-1111-1111-1111-111111111111"},"left":[{"noteID":"11111111-1111-1111-1111-111111111111","text":"Haus"},{"noteID":"22222222-2222-2222-2222-222222222222","text":"Baum"}],"right":[{"noteID":"22222222-2222-2222-2222-222222222222","text":"tree"},{"noteID":"11111111-1111-1111-1111-111111111111","text":"house"}]}}},"idempotencyKey":"66666666-6666-6666-6666-666666666666","sessionID":"33333333-3333-3333-3333-333333333333","version":1}"#
+
+    var matchPairs: ExerciseEvent {
+        ExerciseEvent(
+            idempotencyKey: UUID(uuidString: "66666666-6666-6666-6666-666666666666")!, sessionID: session,
+            answeredAt: answeredAt,
+            attempt: .matchPairs(
+                prompt: MatchPairsPrompt(
+                    cardID: Card.ID(noteID: note, direction: .forward),
+                    left: [MatchPairsItem(noteID: note, text: "Haus"), MatchPairsItem(noteID: other, text: "Baum")],
+                    right: [MatchPairsItem(noteID: other, text: "tree"), MatchPairsItem(noteID: note, text: "house")]),
+                pairing: [note: other, other: note]))
+    }
+
     var writing: ExerciseEvent {
         ExerciseEvent(
             idempotencyKey: UUID(uuidString: "44444444-4444-4444-4444-444444444444")!, sessionID: session,
@@ -41,9 +57,9 @@ struct ExerciseEventPayloadTests {
                 selected: other))
     }
 
-    @Test(arguments: [(frozenWriting, 0), (frozenPickOne, 1)])
+    @Test(arguments: [(frozenWriting, 0), (frozenPickOne, 1), (frozenMatchPairs, 2)])
     func shippedRowsDecodeAndReencodeByteForByte(_ frozen: String, _ index: Int) throws {
-        let expected = [writing, pickOne][index]
+        let expected = [writing, pickOne, matchPairs][index]
         let data = Data(frozen.utf8)
         #expect(try ExerciseEventPayload.event(from: data) == expected)
         #expect(try ExerciseEventPayload(expected).encoded() == data)
@@ -58,6 +74,10 @@ struct ExerciseEventPayloadTests {
         "not json",
         #"{"version":1}"#,
         frozenWriting.replacingOccurrences(of: #""direction":1"#, with: #""direction":7"#),
+        // A pairing that leaves an item out.
+        frozenMatchPairs.replacingOccurrences(
+            of: #",{"left":"22222222-2222-2222-2222-222222222222","right":"11111111-1111-1111-1111-111111111111"}"#,
+            with: ""),
     ])
     func malformedPayloadIsACorruptRow(_ payload: String) throws {
         #expect(throws: StoreError.corruptRow("exercise_event")) {

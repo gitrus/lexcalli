@@ -4,13 +4,18 @@
 
     /// Deterministic test dependencies, restricted to isolated UITest libraries; never learner settings.
     nonisolated enum ExerciseUITestFixture: String {
-        case writing, writingLatin, pickOne, smallDeck
+        case writing, writingLatin, pickOne, pickOneReverse, matchPairs, smallDeck
 
         private var isWriting: Bool { self == .writing || self == .writingLatin }
 
         /// Mixed offers only the fixture's exercise type, so a journey never depends on random choice.
         var exerciseEngines: ExerciseEnginesByMode {
-            let mixed: [any ExerciseStrategy] = isWriting ? [WritingExercise()] : PickOneExercise().map { [$0] } ?? []
+            let mixed: [any ExerciseStrategy] =
+                switch self {
+                case .writing, .writingLatin: [WritingExercise()]
+                case .matchPairs: MatchPairsExercise().map { [$0] } ?? []
+                case .pickOne, .pickOneReverse, .smallDeck: PickOneExercise().map { [$0] } ?? []
+                }
             return ExerciseEnginesByMode([.flashcards: [FlashcardExercise()], .mixed: mixed])
         }
 
@@ -35,10 +40,12 @@
             let date = Date.now.addingTimeInterval(-60)
             try await library.decks.save(deck, at: date)
             let opened = try await library.reviews.openSession(UUID(), deck: deck.id, at: date)
-            // Unlock through a real saved card event; leave the first forward card due.
+            // Unlock through a real saved review; leave the requested direction of the first note due.
+            let reviewedDirection: CardDirection = self == .pickOneReverse ? .forward : .reverse
             _ = try await library.reviews.record(
                 CardReviewEvent(
-                    sessionID: opened.session.id, cardID: Card.ID(noteID: deck.notes[0].id, direction: .reverse),
+                    sessionID: opened.session.id,
+                    cardID: Card.ID(noteID: deck.notes[0].id, direction: reviewedDirection),
                     rating: .good, answeredAt: date))
             _ = try await library.reviews.endSession(opened.session.id, at: date)
         }

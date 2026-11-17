@@ -25,6 +25,7 @@ struct WritingAnswerInput: View {
                 text: $text, isFocused: $isFocused, language: language,
                 isEnabled: isEnabled, control: control, onSubmit: onSubmit
             )
+            .disabled(!isEnabled)
         }
         .padding(configuration.inputPadding)
         .background(.background, in: .rect(cornerRadius: configuration.inputCornerRadius))

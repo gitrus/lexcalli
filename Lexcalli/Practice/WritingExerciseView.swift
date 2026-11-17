@@ -12,8 +12,7 @@ struct WritingExerciseView: View {
     @State private var input = WritingInputControl()
 
     private var isLocked: Bool {
-        isConfirming || model.hasPendingAnswer || model.feedback != nil || model.isSaving || model.failure != nil
-            || model.phase != .studying
+        isConfirming || !model.acceptsAnswer
     }
 
     var body: some View {

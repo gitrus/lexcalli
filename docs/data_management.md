@@ -25,13 +25,13 @@ The guidance comes from the project's installed skills (SwiftUI Expert, Swift Co
 | User preferences | appearance, serif text, show transcription | `UserDefaults` through `@AppStorage`, keys in `PreferenceKey` | device, survives updates |
 | Learning content | decks, notes, cards; topics (planned) | database | user data, never lost silently |
 | Learning history | card review events; exercise review events | database, append-only | user data |
-| Scheduling state | per-card FSRS memory state, due date | database, derived from card review events | user data, **recomputable** |
+| Scheduling state | per-card FSRS memory state, due date | database, derived from card events and, in the target design, graded exercise events | user data, **recomputable** |
 | Media | images, audio | files in Application Support; the database stores references | user data |
 | Operations in flight | import staging, events not yet projected, future sync outbox | staging directory and database tables | until finished or recovered |
 | Re-creatable data | thumbnails, decoded waveforms | `Library/Caches` | may be purged by the system |
 | Secrets (future: sync accounts, API tokens) | — | Keychain | — |
 
-Only user preferences go to `UserDefaults`. Everything the learner creates or earns goes to the database or the media store, behind the store protocols in `LexcalliCore`. One exception exists today: the flag that the bundled starter deck was added to a library is kept in `UserDefaults` (starter deck seed, `StarterDeck`).
+Only user preferences go to `UserDefaults`. Everything the learner creates or earns goes to the database or the media store, behind the store protocols in `LexcalliCore`. One exception exists today: the flags that each bundled starter deck was added to a library are kept in `UserDefaults` (starter deck seed, `StarterDecks`).
 
 ## Identities
 
@@ -54,23 +54,29 @@ Every identifier needs a stated purpose. An entity doesn't get two ids "just in 
 
 User activity is collected in practice sessions and recorded as events. Scheduling state is calculated from those events, separately from recording them.
 
-> One accepted scheduled review = one durable card review event. Every event is applied to the card's scheduling state exactly once.
+**Target design (planned).** Exercise grades and the combined projector input below are agreed behaviour, not implemented yet. The two review logs remain separate.
+
+> One accepted answer = one durable event in its own log. Each event with a scheduling rating is applied to its target card exactly once.
 
 - **Recording a review appends one event.** The command validates the answer and inserts the event. That insert is the only write the study screen waits for; it doesn't compute FSRS or touch the card.
 - **Idempotent.** Each card review event is keyed by its `idempotency_key` (the table's primary key). The key is a client-generated UUID, created once per answer and reused on retry, so a retry can't record a second review.
   - A composite key such as `practice_session_id + card_id` assumes a card is answered once per session, which learning steps may break (see [Open questions](#open-questions)).
   - `practice_session_id` is still stored on each event as a plain attribute, for grouping and statistics.
-- **Scheduling state is a projection.** A projector runs unapplied events through FSRS in order and updates the card's scheduling state, like a materialized view refreshed in waves. It processes only cards with unapplied events.
-  - *Checkpoint.* The projector records the last applied event per card, in the same write as the new state. An event is never applied twice, and after a crash the projector resumes from the checkpoint.
-  - *Triggers.* The end of a session; later, new events delivered by sync or import. iOS can terminate a suspended app without notice, so opening a session first ends any session still marked open, which runs the projector for it. The checkpoint makes running at both points safe.
-  - *Rebuild.* An event that arrives out of order is earlier than the card's checkpoint; the projector reports the card instead of applying it, and Recalculate rebuilds that card from its baseline and events ([repair flow](learning_usecases.md#repairing-a-cards-schedule)). Dropping and rebuilding the whole projection, for example after an FSRS parameter change, is planned.
-  - *Repair survives relaunch.* A card needs repair when it has more events from ended sessions (or imported history) than its checkpoint has applied. Append-only events plus the checkpoint's count make that derivable at any time, with no extra state table. Every `openSession`, fresh or retried, reports those cards again, and they stay out of every queue until Recalculate succeeds (store query `DatabaseStore.pendingRepairs`).
+- **Scheduling state is a projection.** The projector folds scheduling observations from card events and exercise events with a non-null frozen grade, for the same note and direction. Each observation carries the card, `Rating`, and `ReviewPosition`; ungraded exercise events have no scheduling effect. The fold starts from the card's baseline and processes only cards with unapplied observations.
+  - *Order.* Both sources form one stream ordered by `ReviewPosition`: answer time in whole milliseconds, then UUID idempotency key. Exercise answer times use the same millisecond rounding as card events, both in the stored `answered_at` and in the domain value used for ordering. The same baseline and events give the same state on every device, regardless of arrival order.
+  - *Checkpoint.* The projector records the last applied position and observation count per card, in the same write as the new state. An observation is never applied twice; projection from a checkpoint must equal a full rebuild over the same ordered stream.
+  - *Triggers.* The end of a session projects every card rated in that session from either log; later, new events delivered by sync or import also trigger projection. iOS can terminate a suspended app without notice, so opening a session first ends any session still marked open, which runs the projector for it. The checkpoint makes running at both points safe.
+  - *Rebuild.* An observation that arrives earlier than the card's checkpoint is reported as out of order instead of applied after newer ones. Recalculate folds both sources from the baseline, using stored grades without re-grading ([repair flow](learning_usecases.md#repairing-a-cards-schedule)). Dropping and rebuilding the whole projection, for example after an FSRS parameter change, is planned.
+  - *Repair survives relaunch.* `pendingRepairs` counts card events and graded exercise events from ended sessions or with no session against `checkpoint_count`. Ungraded events are excluded. Append-only events plus this count make repair derivable without an extra state table. Every `openSession`, fresh or retried, reports those cards again, and they stay out of every queue until Recalculate succeeds.
 - **The study queue is prepared once, when a session opens,** from up-to-date scheduling state, with one card per note. Answers don't reorder it; their effect appears when the session ends.
 - **The code:** the review store contract (domain `ReviewStore`), its GRDB implementation (store `DatabaseStore`), and the app's practice session model (model `PracticeModel`), which keeps an answer's event before awaiting so a retry resends the same key.
-- **Exercise review events are a separate log.** One confirmed Writing or Pick-one attempt is one immutable event: a snapshot of what was shown and what the learner answered. These events don't write card events or update FSRS yet; scheduling credit needs explicit rules in [learning engine](learning_engine.md#relationship-to-fsrs).
-  - *Idempotent, like card reviews.* Retrying a failed save resends the same idempotency key, so the attempt is recorded once. The same key with different content is a conflict, never an overwrite.
-  - *Versioned snapshot.* The store keeps each event as versioned JSON (`ExerciseEventPayload`) and maps it to domain types like other records. Its field names are a stored contract: a row from a newer version, or one that can't be read, is reported as an error, not a crash. Tests keep a frozen copy of the first shipped format.
-- **Session modes and availability.** Mixed eligibility comes from saved card history, not a preference or projected study count. It is one more column of the deck summaries query, so the deck list keeps a single observation; opening a Mixed session checks the same SQL rule. A retry belongs to the original mode and deck. Both logs exclude answered notes from an open-session retry queue, while only card events participate in projection and repair. Schema upgrades preserve old sessions as Flashcards through the existing snapshot/copy/swap guarantees.
+- **Exercise review events are a separate log.** One confirmed Writing, Pick-one, or Match pairs attempt is one immutable event: a snapshot of what was shown and what the learner answered. It never writes a copy to `card_review_event`, which holds flashcard ratings and imported Anki history. Only the target card can receive a grade; distractors and companions never do (see [rating rules](learning_engine.md#exercise-grades-target-design)).
+  - *Frozen grade.* Compute the grade once when recording the answer and store it with the event. `ExerciseGrade` allows Again, Hard, or Good, never Easy. Writing produces Good/Hard/Again, Pick-one Good/Again, and Match pairs no grade. Validate the grade against the attempt's grading rule only when recording, never on decode. Replay reads the stored grade, so later rule changes do not rewrite history or make old events unreadable.
+  - *Idempotent, like card reviews.* Retrying a failed save resends the same event, idempotency key, and frozen grade. The same key with different content, including a different grade, is a conflict, never an overwrite. Recording waits only for the insert, not projection.
+  - *Versioned snapshot.* The store keeps each attempt in versioned JSON (`ExerciseEventPayload`) and maps it to domain types like other records. Its field names are a stored contract: a row from a newer payload version, or one that can't be read, is reported as an error, not a crash. Frozen stored-format tests remain; adding the Match pairs attempt case left existing keys unchanged.
+  - *Schema v3, not payload v3.* An append-only migration adds nullable `grade INTEGER CHECK (grade IN (1,2,3))` to `exercise_event`, through the existing migrate-a-copy-then-swap path. Again/Hard/Good use 1/2/3. The grade lives in this column; payload `version` stays 1.
+  - *No backfill.* Every pre-v3 exercise row keeps `grade = NULL`, including old Writing and Pick-one attempts. Migration leaves existing projections unchanged. `NULL` means no scheduling observation, also for new Match pairs events; replay never infers a missing grade.
+- **Session modes and availability.** Mixed eligibility comes from saved card history, not a preference or projected study count. It is one more column of the deck summaries query, so the deck list keeps a single observation; opening a Mixed session checks the same SQL rule. A retry belongs to the original mode and deck. Both logs still exclude answered notes from an open-session retry queue; the queue rule is unchanged. Projection and repair use card events plus graded exercise events, not ungraded attempts. Schema upgrades preserve old sessions as Flashcards through the existing snapshot/copy/swap guarantees.
 
 ### Import
 
@@ -123,7 +129,7 @@ Deleted content leaves a tombstone, which Anki calls a `grave`, so export and fu
 These are three different mechanisms; none replaces another:
 
 - **Device backup (iCloud or a computer).** It covers Application Support, including the database and media. Re-creatable files are excluded through `Library/Caches`.
-- **User-level export (planned).** A `.colpkg`- or `.apkg`-compatible export is the learner's own recovery path and portability guarantee. Export runs the projector first, so the exported scheduling state includes every card review event.
+- **User-level export (planned).** A `.colpkg`- or `.apkg`-compatible export is the learner's own recovery path and portability guarantee. Export runs the projector first, so in the target design the exported scheduling state includes observations from both logs. Exporting exercise grades as Anki review history is out of scope.
 - **Sync.** It is replication, not backup: it replicates deletions and corruptions too.
 
 For file protection, keep the system default (*complete until first user authentication*) for the database and media, so that future background work such as reminders or sync can open them. Stricter classes are unnecessary for this data.
@@ -137,7 +143,7 @@ Sync is not part of the first milestone, but the model must not rule it out:
 - **Persist an outbox for mutable data.** Note edits, deck renames, and settings changes are recorded in a durable outbox table in the same transaction as the change itself.
 - **Events are authoritative across devices; state is derived.** Two offline devices can review the same card, and last-write-wins on scheduling state would discard valid history. This is a domain rule, not a sync-framework setting:
   - *Events never conflict.* Each is immutable and uniquely identified, so merging two histories is a set union; an event received twice is ignored.
-  - *Scheduling state is recomputed, not resolved.* Received events go through the projector like local ones. Replaying a card's events ordered by answer time, with the idempotency key as tiebreak, gives every device the same state; swift-fsrs already ships rescheduling from history. Both offline reviews of the same card are kept, since FSRS-6 models same-day reviews.
+  - *Scheduling state is recomputed, not resolved.* Received events go through the projector like local ones. Replaying a card's observations from both logs in `ReviewPosition` order, using frozen exercise grades, gives every device the same state; swift-fsrs already ships rescheduling from history. Both offline reviews of the same card are kept, since FSRS-6 models same-day reviews.
   - *Mutable data gets a default resolution.* Note edits, deck renames, and study settings can conflict. The default is last writer wins per field, ordered by a hybrid logical clock rather than the device wall clock.
 - **Never rely on background execution for correctness.** iOS schedules `BGTaskScheduler` work at its own discretion, and force-quitting the app stops background transfers. Correctness must hold if sync runs only while the app is open.
 - **Evaluate our own backend or iCloud** against the event model above, not against feature lists.
@@ -209,7 +215,7 @@ Rules for feature models:
 
 - Previews get data through the same seams as the app: the preview library (`SampleLibrary.preview`), an in-memory store seeded with the sample decks, whose media goes through a media library like imported media.
 - UI tests seed the same sample decks with `LEXCALLI_SEED_SAMPLES` and a fresh library per test with `LEXCALLI_LIBRARY`.
-- Otherwise a new library starts with the bundled starter deck (`StarterDeck`), added once per library.
+- Otherwise a library gets the bundled starter decks (`StarterDecks`), each added once per library.
 
 ## Persistence engine
 
@@ -276,7 +282,7 @@ The experiment below decides between GRDB and SwiftData with evidence, not featu
 
 - Use realistic fixtures, not generic library benchmarks. An imported collection must survive launch, study, termination, migration, re-import, and export without losing semantic content or review history.
 - **Package (`just test`):** Swift Testing. Store contract tests run against `DatabaseStore` and `ReferenceStore`; durability tests cover reopening, WAL, migrations, and media files; import tests unpack `.apkg` fixtures generated with real Anki and reject hostile archives. Export fixtures come with export.
-- **Projector:** applying events incrementally and rebuilding from scratch must give the same state, including after a crash between events.
+- **Projector:** incrementally folding interleaved card and graded exercise observations must equal rebuilding from the baseline, including after a crash between observations or out-of-order arrival followed by repair. Ungraded events must leave scheduling unchanged.
 - **App:** XCTest UI tests launched with a seeded store (`just ui-test`). The run fails unless every required journey actually ran and passed: settings navigation, finishing a session, review history and due dates surviving termination, and the Mixed practice journeys. The UI-test result checker (`check_ui_tests.py`, run by `just ui-test`) verifies the result bundle. Simulator checks come first; device checks cover performance and lifecycle (see [the way](the_way.md#verification-strategy)).
 
 ## Anki file format notes
@@ -325,7 +331,7 @@ These ideas are older than the current frameworks; the tooling changed more than
 | Delphi / FireDAC | data modules, datasets, cached updates, explicit transactions | persistence separate from screens; an explicit unit of work per operation (`submit review`) | binding mutable database records throughout the UI |
 | Android / Jetpack | Room, repositories, Flow, unidirectional data flow, offline-first | the local database as source of truth; observed queries; commands that write locally first | a mandatory ViewModel, repository, and use case for every screen; Android's own guide allows plain classes where a state holder adds nothing |
 | Relational design | constraints, transactions, migrations, stable identity | invariants enforced by the schema | hiding SQL behind generic CRUD interfaces |
-| Event sourcing / CQRS | append-only event log, projections, rebuild from history | card review events as the source of truth; scheduling state as a checkpointed projection | event-sourcing everything: notes, decks, and settings stay plain mutable rows |
+| Event sourcing / CQRS | append-only event log, projections, rebuild from history | separate authoritative review logs; scheduling state as a checkpointed projection | event-sourcing everything: notes, decks, and settings stay plain mutable rows |
 | Modern SwiftUI | Observation, ownership-based state, async/await | native reactive UI with thin adaptation | copying persistent state into large observable objects |
 
 ## Sources

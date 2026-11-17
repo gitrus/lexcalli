@@ -5,18 +5,21 @@ public enum ExerciseKind: String, Codable, Hashable, Sendable {
     case flashcard = "flashcard"
     case writing = "writing"
     case pickOne = "pickOne"
+    case matchPairs = "matchPairs"
 }
 
 public enum ExercisePrompt: Hashable, Sendable {
     case flashcard(Card.ID)
     case writing(WritingPrompt)
     case pickOne(PickOnePrompt)
+    case matchPairs(MatchPairsPrompt)
 
     public var cardID: Card.ID {
         switch self {
         case .flashcard(let card): card
         case .writing(let prompt): prompt.cardID
         case .pickOne(let prompt): prompt.cardID
+        case .matchPairs(let prompt): prompt.cardID
         }
     }
 
@@ -25,6 +28,7 @@ public enum ExercisePrompt: Hashable, Sendable {
         case .flashcard: .flashcard
         case .writing: .writing
         case .pickOne: .pickOne
+        case .matchPairs: .matchPairs
         }
     }
 }
@@ -33,6 +37,8 @@ public enum ExerciseResponse: Hashable, Sendable {
     case flashcard(Rating)
     case writing(String)
     case pickOne(Note.ID)
+    /// Left item's note to the chosen right item's note.
+    case matchPairs([Note.ID: Note.ID])
 }
 
 public enum ExerciseFeedback: Hashable, Sendable {
@@ -40,6 +46,7 @@ public enum ExerciseFeedback: Hashable, Sendable {
     case flashcard(Rating)
     case writing([WritingComparison.Part])
     case pickOne(selected: Note.ID, correct: Note.ID)
+    case matchPairs(MatchPairsEvaluation)
 }
 
 /// Strategies generate a frozen prompt and interpret only their own response type.
@@ -74,6 +81,22 @@ extension PickOneExercise: ExerciseStrategy {
         card: Card.ID, notes: [Note], using random: inout R
     ) -> ExercisePrompt? {
         self.prompt(for: card, in: notes, using: &random).map(ExercisePrompt.pickOne)
+    }
+
+    public func evaluate(_ response: ExerciseResponse, for prompt: ExercisePrompt) -> ExerciseFeedback? {
+        guard prompt.kind == kind else { return nil }
+        return ExerciseAttempt(prompt: prompt, response: response)?.feedback
+    }
+}
+
+extension MatchPairsExercise: ExerciseStrategy {
+    public var kind: ExerciseKind { .matchPairs }
+    public var version: Int { 1 }
+
+    public func generate<R: RandomNumberGenerator>(
+        card: Card.ID, notes: [Note], using random: inout R
+    ) -> ExercisePrompt? {
+        self.prompt(for: card, in: notes, using: &random).map(ExercisePrompt.matchPairs)
     }
 
     public func evaluate(_ response: ExerciseResponse, for prompt: ExercisePrompt) -> ExerciseFeedback? {
@@ -146,6 +169,7 @@ public struct ExerciseEnginesByMode: Sendable {
 
     public static let standard = ExerciseEnginesByMode([
         .flashcards: [FlashcardExercise()],
-        .mixed: [FlashcardExercise(), WritingExercise()] + (PickOneExercise().map { [$0] } ?? []),
+        .mixed: [FlashcardExercise(), WritingExercise()] + (PickOneExercise().map { [$0] } ?? [])
+            + (MatchPairsExercise().map { [$0] } ?? []),
     ])
 }

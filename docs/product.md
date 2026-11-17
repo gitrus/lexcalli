@@ -21,7 +21,7 @@ Learning content, cards, topics, exercises, exercise attempts, and scheduled rev
 - Import established Anki-compatible decks and their associated media; preserve a path to compatible export.
 - Support words, collocations, expressions, and example sentences, with images and multiple audio recordings where useful.
 - Organize related vocabulary into topics for practice, including exercises that deliberately contrast similar words.
-- Support traditional flashcard reviews **and** interactive practice, including multiple choice, typing, audio-based questions, fill-in-the-blank, and sentence assembly.
+- Support traditional flashcard reviews **and** interactive practice, including multiple choice, matching pairs, typing, audio-based questions, fill-in-the-blank, and sentence assembly.
 - Let exercises combine content from multiple cards without implying that every referenced card has been learned.
 - Track review history separately from broader exercise activity.
 - Support extending exercise configurations/content from the backend without shipping a new client for every variation, within the client's supported components.
