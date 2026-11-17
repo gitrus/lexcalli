@@ -24,7 +24,7 @@ Terms marked *(planned)* have no implementation yet. A name in parentheses is th
 - **Exercise type** (`ExerciseKind`): a kind of interaction: flashcard, Pick-one, writing, Match pairs. Its interaction and validation rules (for example, the option count and same-deck distractors for Pick-one) belong to the type, implemented as an exercise strategy (`ExerciseStrategy`: `FlashcardExercise`, `PickOneExercise`, `WritingExercise`, `MatchPairsExercise`). The exercise engine (`ExerciseEngine`) picks among the strategies of a practice mode.
 - **Exercise** (`ExercisePrompt`): an exercise type applied to one or more cards when shown, for example a Pick-one exercise on a reverse card. Its prompt and expected answer are frozen for the current practice item; confirming it stores an immutable attempt.
 - **Exercise attempt** (`ExerciseAttempt`): the learner's confirmed response to an exercise, retained with what was shown. Writing stores the raw text; Pick-one stores the selected option; Match pairs stores the pairing.
-- **Reference role:** how an exercise uses a card it shows. The *target* is the queued card the exercise assesses; a *distractor* is a wrong option (Pick-one); a *companion* is another full item the learner works with but that isn't assessed (Match pairs).
+- **Reference role:** how an exercise uses a card it shows. The *target* is the card the exercise assesses; a *distractor* is a wrong option (Pick-one); a *companion* is another full item the learner works with but that isn't assessed (Match pairs).
 - **Scheduled review:** a card review that contributes to future scheduling. Not every exercise attempt is a scheduled review.
 
 ## Scheduling and history
@@ -32,9 +32,12 @@ Terms marked *(planned)* have no implementation yet. A name in parentheses is th
 - **Card review event** (`CardReviewEvent`): the record of one scheduled review, in the card review log.
 - **Exercise review event** (`ExerciseEvent`): the immutable record of one exercise attempt, in the exercise review log.
 - **Card review log** and **exercise review log**: the two separate append-only logs, both written through the review store (`ReviewStore`); see [data layering](data_layering.md#review-logs).
-- **Rating** (`Rating`): the learner's grade for a card review, 1–4 (Again, Hard, Good, Easy).
+- **Rating** (`Rating`): the FSRS rating for a card, 1–4 (Again, Hard, Good, Easy).
+- **Exercise grade** *(planned)* (`ExerciseGrade`): the optional grade frozen in an exercise event when it is recorded: Again, Hard, or Good, never Easy. Only the target card is rated. Match pairs and pre-v3 events have no grade; replay never re-grades them.
+- **Scheduling observation** *(planned)*: the projector's input from a card event or a graded exercise event: card, rating, and review position. It does not copy an event into the other log.
+- **Review position** (`ReviewPosition`): answer time in whole milliseconds followed by the event's UUID idempotency key; the deterministic ordering key across both logs.
 - **Card state** (`CardState`): new, learning, review, or relearning (0–3).
-- **Scheduling state** (`CardScheduling`): a card's FSRS memory state and due date. It must stay consistent with the card's review events.
+- **Scheduling state** (`CardScheduling`): a card's FSRS memory state and due date. It must stay consistent with the card's scheduling observations; the combined input from both logs is the target design.
 - **Baseline** (`SchedulingBaseline`): a card's starting scheduling state, where projection and recalculation begin: a new card's state, or (planned) the state imported from Anki together with the imported events it already reflects.
 
 ## Identity and lifecycle
