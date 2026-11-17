@@ -23,6 +23,7 @@ The [product requirements](product.md#required-capabilities) define the supporte
 | --- | --- |
 | Flashcard | Recall and self-rating |
 | Pick-one | Recognize the target among distractors |
+| Match pairs | Recognize the target pair among companion pairs; elimination makes it weaker than Pick-one |
 | Writing | Recall spelling/word form |
 | Listen and type or choose | Listening recognition and/or transcription |
 | Complete a sentence | Retrieve the appropriate form in context |
@@ -34,14 +35,16 @@ These are intended interaction types, not promises that each provides an equival
 
 Both modes study the same ordered queue of due notes, one card per note, prepared when the session opens (see [data management](data_management.md#reviews)).
 
+Each round includes at most 22 notes in either mode. Saved answers count toward that limit when the same open session is retried. Other due notes remain due for a later round.
+
 - **Flashcards:** every item is a flashcard. Each answer is a card review and affects scheduling.
-- **Mixed:** when the session opens, the engine freezes one exercise per note, chosen uniformly among the exercise types eligible for that card: flashcard, Writing, or Pick-one. A card with no other eligible type gets a flashcard. The frozen exercise stays the same for the item's whole presentation, including save retries. A session reopened after termination draws again for the notes not yet answered.
+- **Mixed:** when the session opens, the engine freezes one exercise per note, chosen uniformly among the exercise types eligible for that card: flashcard, Writing, Pick-one, or Match pairs. A card with no other eligible type gets a flashcard. The frozen exercise stays the same for the item's whole presentation, including save retries. A session reopened after termination draws again for the notes not yet answered.
 
 Mixed is available once the deck has at least one durably saved card review. Availability doesn't depend on projection or session completion, and it survives relaunch.
 
-Flashcards record card reviews and affect scheduling. Writing and Pick-one record separate exercise attempts; they temporarily do not affect FSRS. This keeps observable practice distinct from scheduling evidence until explicit exercise-to-card-review rules are defined (see [Open questions](#open-questions)).
+Flashcards record card reviews and affect scheduling. Writing, Pick-one, and Match pairs record separate exercise attempts; they temporarily do not affect FSRS. This keeps observable practice distinct from scheduling evidence until explicit exercise-to-card-review rules are defined (see [Open questions](#open-questions)).
 
-A Writing or Pick-one answer is saved before its result is revealed. A failed save keeps the original pending event, so a retry resends the same idempotency key and never records a second attempt.
+An exercise answer is saved before its result is revealed. A failed save keeps the original pending event, so a retry resends the same idempotency key and never records a second attempt.
 
 ## Exercise types
 
@@ -51,6 +54,20 @@ A Writing or Pick-one answer is saved before its result is revealed. A failed sa
 - Uses an option count set in code, default four, including exactly one expected answer and same-deck distractors. Insufficient distinct candidates make the type ineligible; the count is never reduced.
 - A replaceable ordered pipeline prefers matching word count, then similar length, relaxing to less-similar candidates when needed. Distinct normalized answer text is enforced independently of pipeline stages; this is not semantic synonym detection.
 - The exercise review event records ordered option snapshots, note references, target identity, and the confirmed selection.
+
+### Match pairs
+
+The first exercise that works with several cards at once. What the learner sees is in [learning use cases](learning_usecases.md#match-pairs).
+
+- **References.** The queued card is the *target*. The other pairs come from *companion* notes in the same deck, chosen like Pick-one distractors (same pipeline, same direction). Companions are full items the learner works with, but they are not assessed: matching them records no card review and no credit, and it doesn't mean their notes have been learned.
+- **Direction.** Follows the queued card: a forward card puts terms on the left and meanings on the right; a reverse card swaps them.
+- **Pair count.** Set in code, default four, minimum two, including the target pair. A deck with too few valid candidates makes the type ineligible; the count is never reduced.
+- **Validity.** Every pair has a non-blank prompt and answer. Using Pick-one's normalization, all left texts are distinct and all right texts are distinct, so every item has exactly one correct partner. Each pair's left and right items come from the same note.
+- **Response.** A complete one-to-one pairing of left items to right items, each identified by its note. A pairing that leaves an item out or uses an item twice is rejected before saving.
+- **Result.** Each pair is right or wrong; the target pair's result is kept apart from the companions'. There is no partial grade beyond the count of right pairs.
+- **Evidence.** Recognition among a small set, weaker than Pick-one: after three right pairs the fourth is forced, so a correct target pair may come from elimination.
+- **Event.** The exercise review event records the ordered left and right snapshots (text and note references), the target identity, and the confirmed pairing. It is keyed by the target card, like Pick-one.
+- **Mixed.** Joins the uniform choice among eligible types, so it is drawn about as often as each of the other types a card qualifies for.
 
 ### Writing
 
@@ -71,7 +88,7 @@ One exercise may reference many cards; each reference has a role. Once exercises
 
 ## Review logs
 
-Card and exercise history use [two separate review logs](data_layering.md#review-logs). Both logs are durable. The two new exercise types append only exercise events; flashcards in either mode append normal card reviews. Exercise events are excluded from FSRS projection and repair calculations. Future links between logs require an explicit scheduling policy; not every exercise attempt produces a card review.
+Card and exercise history use [two separate review logs](data_layering.md#review-logs). Both logs are durable. Exercise types other than flashcards append only exercise events; flashcards in either mode append normal card reviews. Exercise events are excluded from FSRS projection and repair calculations. Future links between logs require an explicit scheduling policy; not every exercise attempt produces a card review.
 
 ## Relationship to FSRS
 
@@ -94,6 +111,7 @@ Card and exercise history use [two separate review logs](data_layering.md#review
 - Schema/protocol for configurable exercise types, validation ownership, and offline execution.
 - Whether a retry is part of the same exercise attempt or a new one.
 - How a multi-target exercise distributes observations across cards.
+- For Match pairs: whether companion pairs ever count as observations of their cards, and how a forced last pair should discount the target's result.
 
 See:
 - [product](product.md) for user-facing scope

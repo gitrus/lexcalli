@@ -31,7 +31,7 @@ The guidance comes from the project's installed skills (SwiftUI Expert, Swift Co
 | Re-creatable data | thumbnails, decoded waveforms | `Library/Caches` | may be purged by the system |
 | Secrets (future: sync accounts, API tokens) | — | Keychain | — |
 
-Only user preferences go to `UserDefaults`. Everything the learner creates or earns goes to the database or the media store, behind the store protocols in `LexcalliCore`. One exception exists today: the flag that the bundled starter deck was added to a library is kept in `UserDefaults` (starter deck seed, `StarterDeck`).
+Only user preferences go to `UserDefaults`. Everything the learner creates or earns goes to the database or the media store, behind the store protocols in `LexcalliCore`. One exception exists today: the flags that each bundled starter deck was added to a library are kept in `UserDefaults` (starter deck seed, `StarterDecks`).
 
 ## Identities
 
@@ -67,9 +67,10 @@ User activity is collected in practice sessions and recorded as events. Scheduli
   - *Repair survives relaunch.* A card needs repair when it has more events from ended sessions (or imported history) than its checkpoint has applied. Append-only events plus the checkpoint's count make that derivable at any time, with no extra state table. Every `openSession`, fresh or retried, reports those cards again, and they stay out of every queue until Recalculate succeeds (store query `DatabaseStore.pendingRepairs`).
 - **The study queue is prepared once, when a session opens,** from up-to-date scheduling state, with one card per note. Answers don't reorder it; their effect appears when the session ends.
 - **The code:** the review store contract (domain `ReviewStore`), its GRDB implementation (store `DatabaseStore`), and the app's practice session model (model `PracticeModel`), which keeps an answer's event before awaiting so a retry resends the same key.
-- **Exercise review events are a separate log.** One confirmed Writing or Pick-one attempt is one immutable event: a snapshot of what was shown and what the learner answered. These events don't write card events or update FSRS yet; scheduling credit needs explicit rules in [learning engine](learning_engine.md#relationship-to-fsrs).
+- **Exercise review events are a separate log.** One confirmed Writing, Pick-one, or Match pairs attempt is one immutable event: a snapshot of what was shown and what the learner answered. These events don't write card events or update FSRS yet; scheduling credit needs explicit rules in [learning engine](learning_engine.md#relationship-to-fsrs).
   - *Idempotent, like card reviews.* Retrying a failed save resends the same idempotency key, so the attempt is recorded once. The same key with different content is a conflict, never an overwrite.
   - *Versioned snapshot.* The store keeps each event as versioned JSON (`ExerciseEventPayload`) and maps it to domain types like other records. Its field names are a stored contract: a row from a newer version, or one that can't be read, is reported as an error, not a crash. Tests keep a frozen copy of the first shipped format.
+  - *A new exercise type adds a payload case,* as Match pairs did. It adds an attempt key without changing any existing key, so the version stays the same, the table and its columns stay the same, and no migration is needed; the row is keyed by the target card. An older app build reports such a row as unreadable. Tests freeze the new case's first shipped format too.
 - **Session modes and availability.** Mixed eligibility comes from saved card history, not a preference or projected study count. It is one more column of the deck summaries query, so the deck list keeps a single observation; opening a Mixed session checks the same SQL rule. A retry belongs to the original mode and deck. Both logs exclude answered notes from an open-session retry queue, while only card events participate in projection and repair. Schema upgrades preserve old sessions as Flashcards through the existing snapshot/copy/swap guarantees.
 
 ### Import
@@ -209,7 +210,7 @@ Rules for feature models:
 
 - Previews get data through the same seams as the app: the preview library (`SampleLibrary.preview`), an in-memory store seeded with the sample decks, whose media goes through a media library like imported media.
 - UI tests seed the same sample decks with `LEXCALLI_SEED_SAMPLES` and a fresh library per test with `LEXCALLI_LIBRARY`.
-- Otherwise a new library starts with the bundled starter deck (`StarterDeck`), added once per library.
+- Otherwise a library gets the bundled starter decks (`StarterDecks`), each added once per library.
 
 ## Persistence engine
 

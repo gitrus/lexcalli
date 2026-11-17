@@ -21,9 +21,10 @@ Terms marked *(planned)* have no implementation yet. A name in parentheses is th
 - **Practice session** (`PracticeSession`): one period of practice, stored with its mode and status (`PracticeSession.Status`), *open* or *ended*. It groups the card and exercise review events recorded during it.
 - **Study queue** (`StudyQueue`): the cards a practice session will show, built once when it opens, one card per note.
 - **Practice run** (`PracticeRun`): a session's queue paired with the exercise frozen for each card; each entry is a practice item (`PracticeItem`).
-- **Exercise type** (`ExerciseKind`): a kind of interaction: flashcard, Pick-one, writing. Its interaction and validation rules (for example, the option count and same-deck distractors for Pick-one) belong to the type, implemented as an exercise strategy (`ExerciseStrategy`: `FlashcardExercise`, `PickOneExercise`, `WritingExercise`). The exercise engine (`ExerciseEngine`) picks among the strategies of a practice mode.
+- **Exercise type** (`ExerciseKind`): a kind of interaction: flashcard, Pick-one, writing, Match pairs. Its interaction and validation rules (for example, the option count and same-deck distractors for Pick-one) belong to the type, implemented as an exercise strategy (`ExerciseStrategy`: `FlashcardExercise`, `PickOneExercise`, `WritingExercise`, `MatchPairsExercise`). The exercise engine (`ExerciseEngine`) picks among the strategies of a practice mode.
 - **Exercise** (`ExercisePrompt`): an exercise type applied to one or more cards when shown, for example a Pick-one exercise on a reverse card. Its prompt and expected answer are frozen for the current practice item; confirming it stores an immutable attempt.
-- **Exercise attempt** (`ExerciseAttempt`): the learner's confirmed response to an exercise, retained with what was shown. Writing stores the raw text; Pick-one stores the selected option.
+- **Exercise attempt** (`ExerciseAttempt`): the learner's confirmed response to an exercise, retained with what was shown. Writing stores the raw text; Pick-one stores the selected option; Match pairs stores the pairing.
+- **Reference role:** how an exercise uses a card it shows. The *target* is the queued card the exercise assesses; a *distractor* is a wrong option (Pick-one); a *companion* is another full item the learner works with but that isn't assessed (Match pairs).
 - **Scheduled review:** a card review that contributes to future scheduling. Not every exercise attempt is a scheduled review.
 
 ## Scheduling and history
