@@ -1,3 +1,5 @@
+<img src="Lexcalli/Assets.xcassets/AppIcon.appiconset/AppIcon-light.png" alt="Lexcalli app icon" width="128">
+
 # lexcalli
 [![Swift](https://github.com/gitrus/lexcalli/actions/workflows/swift.yml/badge.svg)](https://github.com/gitrus/lexcalli/actions/workflows/swift.yml)
 
