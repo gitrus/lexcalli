@@ -10,6 +10,7 @@ nonisolated struct PracticeConfiguration: Equatable {
     var doneMinWidth: CGFloat = 160
     var promptFont: Font = .title2
     var answerFont: Font = .body
+    var optionPressedOpacity: Double = 0.75
     var inputLabelFont: Font = .caption
     var inputPadding: CGFloat = 16
     var inputMinimumHeight: CGFloat = 44
@@ -19,13 +20,9 @@ nonisolated struct PracticeConfiguration: Equatable {
     var diffLabelFont: Font = .caption.weight(.semibold)
     var diffPadding: CGFloat = 12
     var comparisonBorderWidth: CGFloat = 2
-    var comparisonMatchColor: Color = .green
-    // Muted amber (#A87832), shared by the border and changed-text background.
-    var comparisonDifferenceColor: Color = .init(red: 168 / 255, green: 120 / 255, blue: 50 / 255)
-    var removedTextBackgroundOpacity: Double = 0.12
-    var addedTextBackground: Color = .green.opacity(0.18)
     var feedbackLabelFont: Font = .headline
     var exerciseControlSize: ControlSize = .large
+
 }
 
 extension EnvironmentValues {

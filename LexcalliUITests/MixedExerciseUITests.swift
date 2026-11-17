@@ -110,21 +110,32 @@ final class MixedExerciseUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Pick from 4"].exists)
         XCTAssertFalse(app.buttons["Check Answer"].isEnabled)
         for option in options.allElementsBoundByIndex {
+            XCTAssertTrue(option.isEnabled)
+            XCTAssertGreaterThanOrEqual(option.frame.height, 44)
             XCTAssertFalse((option.value as? String ?? "").contains("Correct"))
         }
+        assertNoPickOneAudio(app)
+        screenshot("Pick-one neutral options", app)
         app.buttons["tree"].tap()
         XCTAssertEqual(app.buttons["tree"].value as? String, "Selected")
         XCTAssertFalse(app.staticTexts["Correct answer"].exists)
         XCTAssertFalse(app.staticTexts["Your selection"].exists)
         app.buttons["house"].tap()
         XCTAssertEqual(app.buttons["house"].value as? String, "Selected")
+        XCTAssertEqual(app.buttons["tree"].value as? String ?? "", "")
+        assertNoPickOneAudio(app)
+        screenshot("Pick-one selected option", app)
         app.buttons["Check Answer"].tap()
         XCTAssertTrue(app.buttons["Continue"].waitForExistence(timeout: 10))
         let checked = app.buttons["house"].value as? String ?? ""
         XCTAssertTrue(checked.contains("Correct answer"), checked)
         XCTAssertTrue(checked.contains("Your selection"), checked)
+        for option in options.allElementsBoundByIndex {
+            XCTAssertFalse(option.isEnabled)
+        }
         XCTAssertTrue(app.staticTexts["1 of 4"].exists)
         XCTAssertTrue(app.buttons["Continue"].exists)
+        assertLearnedWordAudio(app)
         screenshot("Confirmed Pick-one", app)
         app.navigationBars.buttons["Finish"].tap()
         XCTAssertTrue(app.navigationBars["Practice"].waitForExistence(timeout: 10))
@@ -134,6 +145,138 @@ final class MixedExerciseUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["1 of 4"].waitForExistence(timeout: 10))
         XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "pick.option.")).count, 4)
         XCTAssertFalse(app.staticTexts["Correct answer"].exists)
+        assertNoPickOneAudio(app)
+    }
+
+    func testPickOneWrongAnswerRetryPreservesSelectionAndFeedback() {
+        let app = launch(fixture: "pickOne", failOnce: true)
+        startMixed(app)
+        let options = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "pick.option."))
+        XCTAssertTrue(options.firstMatch.waitForExistence(timeout: 10))
+        app.buttons["tree"].tap()
+        app.buttons["Check Answer"].tap()
+        XCTAssertTrue(app.buttons["Try Again"].waitForExistence(timeout: 10), app.debugDescription)
+        XCTAssertEqual(app.buttons["tree"].value as? String, "Selected")
+        XCTAssertFalse(app.buttons["Continue"].exists)
+        assertNoPickOneAudio(app)
+        for option in options.allElementsBoundByIndex {
+            XCTAssertFalse(option.isEnabled)
+            XCTAssertFalse((option.value as? String ?? "").contains("Correct answer"))
+        }
+        app.buttons["Try Again"].tap()
+        XCTAssertTrue(app.buttons["Continue"].waitForExistence(timeout: 10))
+        XCTAssertEqual(app.buttons["tree"].value as? String, "Your selection. Not the expected answer")
+        XCTAssertEqual(app.buttons["house"].value as? String, "Correct answer")
+        for option in options.allElementsBoundByIndex {
+            XCTAssertFalse(option.isEnabled)
+        }
+        assertLearnedWordAudio(app)
+        screenshot("Pick-one wrong answer after retry", app)
+        app.buttons["Continue"].tap()
+        XCTAssertTrue(app.staticTexts["2 of 4"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["Check Answer"].isEnabled)
+        assertNoPickOneAudio(app)
+        for option in options.allElementsBoundByIndex {
+            XCTAssertTrue(option.isEnabled)
+            XCTAssertEqual(option.value as? String ?? "", "")
+        }
+    }
+
+    func testPickOneAtAccessibilitySizeKeepsFeedbackAndContinueReachable() {
+        assertPickOneFeedbackIsShownAutomatically(answer: "house", status: "Your selection. Correct answer")
+    }
+
+    func testPickOneWrongAnswerAtAccessibilitySizeShowsCorrectFeedback() {
+        assertPickOneFeedbackIsShownAutomatically(answer: "tree", status: "Your selection. Not the expected answer")
+    }
+
+    func testPickOneReverseAudioAppearsOnlyAfterSavedRetry() {
+        let app = launch(fixture: "pickOneReverse", failOnce: true)
+        startMixed(app)
+        XCTAssertTrue(app.buttons["Haus"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["house"].exists)
+        assertNoPickOneAudio(app)
+        app.buttons["Baum"].tap()
+        app.buttons["Check Answer"].tap()
+        XCTAssertTrue(app.buttons["Try Again"].waitForExistence(timeout: 10))
+        assertNoPickOneAudio(app)
+        app.buttons["Try Again"].tap()
+        XCTAssertTrue(app.buttons["Continue"].waitForExistence(timeout: 10))
+        assertLearnedWordAudio(app, onQuestion: false)
+        app.buttons["Continue"].tap()
+        XCTAssertTrue(app.staticTexts["2 of 4"].waitForExistence(timeout: 10))
+        assertNoPickOneAudio(app)
+    }
+
+    func testPickOneReverseAtAccessibilitySizeKeepsAnswerAudioReachable() {
+        assertPickOneFeedbackIsShownAutomatically(
+            answer: "Haus", status: "Your selection. Correct answer", reverse: true)
+    }
+
+    private func assertPickOneFeedbackIsShownAutomatically(answer: String, status: String, reverse: Bool = false) {
+        let app = launch(fixture: reverse ? "pickOneReverse" : "pickOne", largeText: true)
+        startMixed(app)
+        let selected = app.buttons[answer]
+        XCTAssertTrue(selected.waitForExistence(timeout: 10))
+        for _ in 0..<4 {
+            if selected.isHittable { break }
+            app.scrollViews.firstMatch.swipeUp()
+        }
+        XCTAssertTrue(selected.isHittable)
+        selected.tap()
+        XCTAssertTrue(app.buttons["Check Answer"].isHittable)
+        app.buttons["Check Answer"].tap()
+        XCTAssertTrue(app.buttons["Continue"].waitForExistence(timeout: 10))
+        let scrollView = app.scrollViews.firstMatch
+        let audio = app.buttons[reverse ? "pick.correctAudio" : "pick.questionAudio"]
+        XCTAssertTrue(audio.waitForExistence(timeout: 10))
+        // No swipe after confirmation: the app must bring the learned word's speaker into view itself.
+        let visible = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hittable == true"), object: audio)
+        wait(for: [visible], timeout: 10)
+        assertLearnedWordAudio(app, onQuestion: !reverse)
+        XCTAssertTrue(scrollView.frame.contains(audio.frame), "The speaker must be fully visible")
+        if reverse {
+            XCTAssertTrue(scrollView.frame.contains(app.buttons["Haus"].frame), "Correct answer must be fully visible")
+        } else {
+            XCTAssertTrue(scrollView.frame.contains(app.staticTexts["Haus"].frame), "Question must be fully visible")
+        }
+        XCTAssertTrue(app.buttons["Continue"].isHittable)
+        XCTAssertFalse(selected.isEnabled)
+        XCTAssertEqual(selected.value as? String, status)
+        screenshot("Pick-one \(answer) feedback shown automatically at accessibility size", app)
+        app.buttons["Continue"].tap()
+        XCTAssertTrue(app.staticTexts["2 of 4"].waitForExistence(timeout: 10))
+    }
+
+    private func assertNoPickOneAudio(_ app: XCUIApplication) {
+        XCTAssertFalse(app.buttons["pick.correctAudio"].exists)
+        XCTAssertFalse(app.buttons["pick.questionAudio"].exists)
+    }
+
+    private func assertLearnedWordAudio(_ app: XCUIApplication, onQuestion: Bool = true) {
+        let identifier = onQuestion ? "pick.questionAudio" : "pick.correctAudio"
+        let audio = app.buttons[identifier]
+        let correct = app.buttons[onQuestion ? "house" : "Haus"]
+        let container = onQuestion ? app.descendants(matching: .any)["pick.question"].firstMatch : correct
+        XCTAssertTrue(audio.waitForExistence(timeout: 10))
+        XCTAssertEqual(app.buttons.matching(identifier: identifier).count, 1)
+        XCTAssertFalse(app.buttons[onQuestion ? "pick.correctAudio" : "pick.questionAudio"].exists)
+        XCTAssertTrue(audio.isEnabled)
+        XCTAssertTrue(audio.isHittable)
+        XCTAssertEqual(audio.label, onQuestion ? "Listen to question: Haus" : "Listen to correct answer: Haus")
+        screenshot("Pick-one audio geometry: \(identifier)", app)
+        let geometry = "container \(container.frame), audio \(audio.frame), question \(app.staticTexts["Haus"].frame)"
+        XCTAssertTrue(container.frame.contains(audio.frame), geometry)
+        XCTAssertGreaterThan(audio.frame.midX, container.frame.midX, geometry)
+        XCTAssertGreaterThanOrEqual(audio.frame.width, 44)
+        XCTAssertGreaterThanOrEqual(audio.frame.height, 44)
+        XCTAssertFalse(app.staticTexts["Your selection"].exists)
+        XCTAssertFalse(app.staticTexts["Correct answer"].exists)
+        XCTAssertFalse(app.staticTexts["Not the expected answer"].exists)
+        audio.tap()
+        XCTAssertTrue(app.buttons["Continue"].exists)
+        XCTAssertFalse(correct.isEnabled)
+        XCTAssertTrue((correct.value as? String ?? "").contains("Correct answer"))
     }
 
     func testInsufficientChoicesUseFlashcardFallback() {
@@ -221,6 +364,11 @@ final class MixedExerciseUITests: XCTestCase {
         showPractice(app)
         let mixed = app.buttons["practice.mixed.\(fixtureID)"]
         XCTAssertTrue(mixed.waitForExistence(timeout: 10))
+        for _ in 0..<4 {
+            if mixed.isHittable { break }
+            app.swipeUp()
+        }
+        XCTAssertTrue(mixed.isHittable)
         mixed.tap()
     }
 

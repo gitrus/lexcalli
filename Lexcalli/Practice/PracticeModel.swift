@@ -33,6 +33,9 @@ final class PracticeModel {
     var writingLanguage: Locale.Language? { deck?.termLanguage }
     var feedback: ExerciseFeedback? { run?.feedback }
     var hasPendingAnswer: Bool { run?.pending != nil }
+    var acceptsAnswer: Bool {
+        phase == .studying && !isSaving && failure == nil && !hasPendingAnswer && feedback == nil
+    }
     var flashcardsReviewed: Int { run?.flashcardsReviewed ?? 0 }
     var exercisesCompleted: Int { run?.exercisesCompleted ?? 0 }
     let mode: PracticeMode
