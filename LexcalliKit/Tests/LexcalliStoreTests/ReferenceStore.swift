@@ -234,7 +234,8 @@ private struct State: Sendable {
             answered.contains(card.noteID) || pending.contains(card.id)
                 ? nil : projections[card.id].map { QueueCandidate(cardID: card.id, due: $0.scheduling.due) }
         }
-        return StudyQueue.build(from: candidates, now: date)
+        return StudyQueue.build(
+            from: candidates, now: date, limit: StudyQueue.remainingCapacity(afterAnswering: answered.count))
     }
 
     mutating func end(_ id: PracticeSession.ID, at date: Date, projector: Projector) -> ProjectionReport {

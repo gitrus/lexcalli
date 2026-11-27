@@ -112,8 +112,8 @@ struct PickOneExerciseTests {
     }
 
     @Test func customStagesComposeInOrderAndMayFilter() throws {
-        let first = DistractorStage { candidates, _ in candidates.filter { $0.answer != "Katze" } }
-        let second = DistractorStage { candidates, _ in
+        let first = ChoiceStage { candidates, _ in candidates.filter { $0.answer != "Katze" } }
+        let second = ChoiceStage { candidates, _ in
             candidates.contains { $0.answer == "Katze" } ? [] : Array(candidates.prefix(1))
         }
         let exercise = try #require(PickOneExercise(optionCount: 2, stages: [first, second]))
@@ -123,7 +123,7 @@ struct PickOneExerciseTests {
         #expect(!prompt.options.contains { $0.answer == "Katze" })
         let reversed = try #require(PickOneExercise(optionCount: 2, stages: [second, first]))
         #expect(reversed.prompt(for: card, in: notes, using: &random) == nil)
-        let drop = DistractorStage { _, _ in [] }
+        let drop = ChoiceStage { _, _ in [] }
         let empty = try #require(PickOneExercise(optionCount: 2, stages: [drop]))
         #expect(empty.prompt(for: card, in: notes, using: &random) == nil)
     }
@@ -139,8 +139,8 @@ struct PickOneExerciseTests {
     }
 
     @Test func customStagesCannotInjectForeignCandidates() throws {
-        let foreign = DistractorCandidate(noteID: UUID(), prompt: "outside", answer: "foreign")
-        let inject = DistractorStage { candidates, _ in [foreign] + candidates + candidates }
+        let foreign = ChoiceCandidate(noteID: UUID(), prompt: "outside", answer: "foreign")
+        let inject = ChoiceStage { candidates, _ in [foreign] + candidates + candidates }
         let exercise = try #require(PickOneExercise(optionCount: 3, stages: [inject]))
         var random = Seeded()
         let card = Card.ID(noteID: notes[0].id, direction: .forward)

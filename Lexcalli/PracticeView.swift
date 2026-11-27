@@ -4,12 +4,14 @@ import SwiftUI
 struct PracticeView: View {
     let open: (AppRoute) -> Void
     @Environment(\.library) private var library
+    @Environment(\.practice) private var configuration
     @State private var decks: Observed<[DeckSummary]> = .loading
 
     var body: some View {
         List(decks.value ?? []) { deck in
             PracticeDeckSection(deck: deck, open: open)
         }
+        .listSectionSpacing(sectionSpacing)
         .overlay {
             switch decks {
             case .loading:
@@ -26,8 +28,16 @@ struct PracticeView: View {
                 EmptyView()
             }
         }
+        .paperGroupedBackground()
         .navigationTitle("Practice")
         .observe({ [decks = library.decks] in decks.deckSummaries() }, id: 0, into: $decks)
+    }
+
+    private var sectionSpacing: ListSectionSpacing {
+        let count = decks.value?.count ?? 0
+        if count >= 5 { return .custom(configuration.denseDeckSectionSpacing) }
+        if count > 3 { return .custom(configuration.compactDeckSectionSpacing) }
+        return .default
     }
 }
 
@@ -54,6 +64,7 @@ private struct PracticeDeckSection: View {
                     .font(configuration.modeHintFont)
             }
         }
+        .listRowBackground(Color.paper)
     }
 
     @ViewBuilder

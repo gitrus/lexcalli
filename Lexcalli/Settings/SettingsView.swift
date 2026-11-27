@@ -8,11 +8,14 @@ struct SettingsView: View {
                 link(to: .cards)
                 link(to: .appearance)
             }
+            .listRowBackground(Color.paper)
             Section {
                 link(to: .about)
             }
+            .listRowBackground(Color.paper)
         }
         .labelStyle(.glassIcon)
+        .paperGroupedBackground()
         .navigationTitle("Settings")
     }
 

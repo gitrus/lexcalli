@@ -137,6 +137,37 @@ struct ExerciseStoreTests {
     }
 
     @Test(arguments: StoreKind.allCases)
+    func matchPairsSavesPairingWithoutSchedulingAndRejectsForeignCompanions(_ kind: StoreKind) async throws {
+        let store = try kind.make()
+        try await unlock(store)
+        let opened = try await store.openSession(UUID(), deck: deck.id, mode: .mixed, at: now)
+        let card = Card.ID(noteID: deck.notes[0].id, direction: .forward)
+        let left = deck.notes.map { MatchPairsItem(noteID: $0.id, text: $0.term) }
+        let right = deck.notes.reversed().map { MatchPairsItem(noteID: $0.id, text: $0.meaning) }
+        let prompt = MatchPairsPrompt(cardID: card, left: left, right: right)
+        let before = try await store.projection(of: card)
+        let reviewsBefore = try await store.reviewEvents(of: card)
+        let crossed = [deck.notes[0].id: deck.notes[1].id, deck.notes[1].id: deck.notes[0].id]
+        let event = ExerciseEvent(
+            sessionID: opened.session.id, answeredAt: now, attempt: .matchPairs(prompt: prompt, pairing: crossed))
+        #expect(try await store.record(event) == .recorded)
+        #expect(try await store.record(event) == .alreadyRecorded)
+        #expect(try await store.exerciseEvents(in: opened.session.id) == [event])
+        #expect(try await store.projection(of: card) == before)
+        #expect(try await store.reviewEvents(of: card) == reviewsBefore)
+
+        let foreign = Note(term: "foreign", meaning: "outside")
+        let withForeign = MatchPairsPrompt(
+            cardID: card, left: [left[0], MatchPairsItem(noteID: foreign.id, text: foreign.term)],
+            right: [right[1], MatchPairsItem(noteID: foreign.id, text: foreign.meaning)])
+        let invalid = ExerciseEvent(
+            sessionID: opened.session.id, answeredAt: now,
+            attempt: .matchPairs(prompt: withForeign, pairing: [card.noteID: card.noteID, foreign.id: foreign.id]))
+        await #expect(throws: ReviewStoreError.invalidExercise(invalid.id)) { _ = try await store.record(invalid) }
+        #expect(try await store.exerciseEvents(in: opened.session.id) == [event])
+    }
+
+    @Test(arguments: StoreKind.allCases)
     func mixedCardReviewsProjectOnceAndKeysCannotCrossLogs(_ kind: StoreKind) async throws {
         let store = try kind.make()
         try await unlock(store)

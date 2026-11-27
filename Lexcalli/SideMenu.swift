@@ -123,6 +123,7 @@ private struct SideMenuRow: View {
             } icon: {
                 // Matches the round glass toolbar button that opens the menu.
                 Image(systemName: section.systemImage)
+                    .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
                     .frame(width: configuration.iconSize * scale, height: configuration.iconSize * scale)
                     .glassEffect(.regular, in: .circle)
             }
@@ -131,10 +132,8 @@ private struct SideMenuRow: View {
             .contentShape(shape)
         }
         .buttonStyle(.plain)
-        .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
-        .background {
-            if isSelected { shape.fill(.tint.quaternary) }
-        }
+        // A glass pill and a blue icon mark where the learner is; the title stays ink, so the row reads quietly.
+        .glassEffect(isSelected ? .regular : .identity, in: shape)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

@@ -8,6 +8,8 @@ nonisolated struct FlashCardConfiguration: Equatable {
     var maxHeight: CGFloat = 376
     var flipDuration: TimeInterval = 0.45
     var cornerRadius: CGFloat = 32
+    /// Keeps the glass card from reading as white against the warm app background.
+    var glassTint: Color = Color("Paper")
     var padding: CGFloat = 24
     var spacing: CGFloat = 16
     var textFont: Font = .largeTitle.bold()
@@ -15,6 +17,9 @@ nonisolated struct FlashCardConfiguration: Equatable {
     var transcriptionFont: Font = .title3
     var audioButtonFont: Font = .title3
     var audioButtonDiameter: CGFloat = 48
+    var compactAudioButtonFont: Font = .body
+    var compactAudioButtonDiameter: CGFloat = 30
+    var audioButtonMinimumHitSize: CGFloat = 44
     var audioButtonPressedScale: CGFloat = 0.96
     var audioButtonPressedOpacity: Double = 0.8
     var audioButtonPressDuration: TimeInterval = 0.1

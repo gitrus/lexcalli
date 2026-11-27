@@ -4,19 +4,20 @@ import SwiftUI
 struct WritingComparisonView: View {
     let parts: [WritingComparison.Part]
     @Environment(\.practice) private var configuration
+    @Environment(\.feedbackPalette) private var palette
 
     var body: some View {
         VStack(alignment: .trailing, spacing: configuration.controlSpacing) {
             VStack(spacing: configuration.controlSpacing) {
-                ComparisonRow(side: .actual, parts: parts)
-                ComparisonRow(side: .expected, parts: parts)
+                ComparisonRow(side: .actual, parts: parts, highlight: palette.mistakeHighlight)
+                ComparisonRow(side: .expected, parts: parts, highlight: palette.correctionHighlight)
             }
             .padding(configuration.diffPadding)
             .background(.background, in: .rect(cornerRadius: configuration.inputCornerRadius))
             .overlay {
                 RoundedRectangle(cornerRadius: configuration.inputCornerRadius)
                     .strokeBorder(
-                        answersMatch ? configuration.comparisonMatchColor : configuration.comparisonDifferenceColor,
+                        answersMatch ? palette.correction : palette.mistake,
                         lineWidth: configuration.comparisonBorderWidth
                     )
             }
@@ -80,6 +81,7 @@ private nonisolated enum Side {
 private struct ComparisonRow: View {
     let side: Side
     let parts: [WritingComparison.Part]
+    let highlight: Color
     @Environment(\.practice) private var configuration
 
     var body: some View {
@@ -89,13 +91,7 @@ private struct ComparisonRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
-                .textRenderer(
-                    ComparisonHighlightRenderer(
-                        removed: configuration.comparisonDifferenceColor
-                            .opacity(configuration.removedTextBackgroundOpacity),
-                        added: configuration.addedTextBackground
-                    )
-                )
+                .textRenderer(ComparisonHighlightRenderer(highlight: highlight))
                 // Native selectable-text rendering bypasses the custom highlight renderer on iOS.
                 .accessibilityIdentifier(side == .expected ? "writing.expected" : "writing.actual")
             Text(side.title)
@@ -113,29 +109,23 @@ private struct ComparisonRow: View {
             case .softDifference: text = text.italic()
             case .difference: text = text.bold()
             }
-            if part.kind != .match { text = text.customAttribute(ComparisonChange(side: side)) }
+            if part.kind != .match { text = text.customAttribute(ComparisonChange()) }
             return Text("\(result)\(text)")
         }
     }
 }
 
-private nonisolated struct ComparisonChange: TextAttribute {
-    let side: Side
-}
+private nonisolated struct ComparisonChange: TextAttribute {}
 
 /// Paints only changed runs, including spaces, while leaving native text layout and wrapping intact.
 private nonisolated struct ComparisonHighlightRenderer: TextRenderer {
-    let removed: Color
-    let added: Color
+    let highlight: Color
 
     func draw(layout: Text.Layout, in context: inout GraphicsContext) {
         for line in layout {
             for run in line {
-                if let change = run[ComparisonChange.self] {
-                    context.fill(
-                        Path(run.typographicBounds.rect),
-                        with: .color(change.side == .expected ? added : removed)
-                    )
+                if run[ComparisonChange.self] != nil {
+                    context.fill(Path(run.typographicBounds.rect), with: .color(highlight))
                 }
                 context.draw(run)
             }
@@ -187,7 +177,7 @@ private struct ComparisonInfo: View {
 
     private var details: some View {
         Text(
-            "Red marks Actual changes; green marks Expected changes. Case or accent changes are italic; other changes are bold. Edge whitespace is ignored. No grade is assigned."
+            "Changes are highlighted as mistakes in Actual and as corrections in Expected. Case or accent changes are italic; other changes are bold. Edge whitespace is ignored. No grade is assigned."
         )
         .font(configuration.failureFont)
         .fixedSize(horizontal: false, vertical: true)

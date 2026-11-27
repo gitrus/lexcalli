@@ -111,7 +111,7 @@ private struct CardFace: View {
         .padding(configuration.padding)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .containerShape(.rect(cornerRadius: configuration.cornerRadius))
-        .glassEffect(.regular, in: .rect(cornerRadius: configuration.cornerRadius))
+        .glassEffect(.regular.tint(configuration.glassTint), in: .rect(cornerRadius: configuration.cornerRadius))
         .accessibilityElement(children: .combine)
     }
 }

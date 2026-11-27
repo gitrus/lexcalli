@@ -17,6 +17,7 @@ struct AboutView: View {
             Link(destination: URL(string: "https://github.com/gitrus/lexcalli")!) {
                 LabeledContent("Version", value: version)
             }
+            .listRowBackground(Color.paper)
 
             Section("Libraries") {
                 ForEach(ThirdPartyLibrary.all) { library in
@@ -35,6 +36,7 @@ struct AboutView: View {
                     .foregroundStyle(.primary)
                 }
             }
+            .listRowBackground(Color.paper)
 
             Section("Media") {
                 // Sample deck photo for "der Schmetterling".
@@ -46,7 +48,9 @@ struct AboutView: View {
                     }
                 }
             }
+            .listRowBackground(Color.paper)
         }
+        .paperGroupedBackground()
         .navigationTitle("About")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $shownLicense) { LicenseView(library: $0) }
@@ -107,6 +111,7 @@ private struct LicenseView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
             }
+            .containerBackground(.paper, for: .navigation)
             .navigationTitle(library.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

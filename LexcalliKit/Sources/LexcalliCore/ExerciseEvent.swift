@@ -4,11 +4,13 @@ import Foundation
 public enum ExerciseAttempt: Hashable, Sendable {
     case writing(prompt: WritingPrompt, response: String)
     case pickOne(prompt: PickOnePrompt, selected: Note.ID)
+    case matchPairs(prompt: MatchPairsPrompt, pairing: [Note.ID: Note.ID])
 
     public var cardID: Card.ID {
         switch self {
         case .writing(let prompt, _): prompt.cardID
         case .pickOne(let prompt, _): prompt.cardID
+        case .matchPairs(let prompt, _): prompt.cardID
         }
     }
 
@@ -16,6 +18,7 @@ public enum ExerciseAttempt: Hashable, Sendable {
         switch self {
         case .writing: .writing
         case .pickOne: .pickOne
+        case .matchPairs: .matchPairs
         }
     }
 
@@ -25,6 +28,8 @@ public enum ExerciseAttempt: Hashable, Sendable {
             .writing(WritingComparison.compare(expected: prompt.expectedAnswer, response: response))
         case .pickOne(let prompt, let selected):
             .pickOne(selected: selected, correct: prompt.cardID.noteID)
+        case .matchPairs(let prompt, let pairing):
+            .matchPairs(MatchPairsEvaluation(prompt: prompt, pairing: pairing))
         }
     }
 
@@ -37,6 +42,9 @@ public enum ExerciseAttempt: Hashable, Sendable {
         case (.pickOne(let prompt), .pickOne(let selected)):
             guard prompt.options.contains(where: { $0.noteID == selected }) else { return nil }
             self = .pickOne(prompt: prompt, selected: selected)
+        case (.matchPairs(let prompt), .matchPairs(let pairing)):
+            guard prompt.accepts(pairing) else { return nil }
+            self = .matchPairs(prompt: prompt, pairing: pairing)
         default:
             return nil
         }
@@ -82,6 +90,10 @@ public struct ExerciseEvent: Identifiable, Hashable, Sendable {
             guard prompt.isWellFormed,
                 prompt.options.allSatisfy({ noteIDs.contains($0.noteID) }),
                 prompt.options.contains(where: { $0.noteID == selected })
+            else { throw ReviewStoreError.invalidExercise(id) }
+        case .matchPairs(let prompt, let pairing):
+            guard prompt.isWellFormed, prompt.left.allSatisfy({ noteIDs.contains($0.noteID) }),
+                prompt.accepts(pairing)
             else { throw ReviewStoreError.invalidExercise(id) }
         }
     }

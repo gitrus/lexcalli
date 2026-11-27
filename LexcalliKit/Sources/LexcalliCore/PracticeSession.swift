@@ -42,16 +42,29 @@ public struct QueueCandidate: Hashable, Sendable {
     }
 }
 
-/// Built once per session; answers don't reorder it. No Again re-insertion, new-card limit, or undo yet.
+/// Built once per session; answers don't reorder it. No Again re-insertion, daily new-card limit, or undo yet.
 public enum StudyQueue {
-    /// Due cards, earliest first, one per note; the sibling waits for a later session.
-    public static func build(from candidates: [QueueCandidate], now: Date) -> [Card.ID] {
+    public static let sessionLimit = 22
+
+    /// Remaining slots in the round, always within zero and the session limit.
+    public static func remainingCapacity(afterAnswering count: Int) -> Int {
+        if count <= 0 { return sessionLimit }
+        if count >= sessionLimit { return 0 }
+        return sessionLimit - count
+    }
+
+    /// Due cards, earliest first, one per note; overflow and siblings wait for a later session.
+    public static func build(
+        from candidates: [QueueCandidate], now: Date, limit: Int = StudyQueue.sessionLimit
+    ) -> [Card.ID] {
+        guard limit > 0 else { return [] }
         var notes = Set<Note.ID>()
         return
             candidates
             .filter { $0.due <= now }
             .sorted { ($0.due, $0.cardID) < ($1.due, $1.cardID) }
             .filter { notes.insert($0.cardID.noteID).inserted }
+            .prefix(limit)
             .map(\.cardID)
     }
 }

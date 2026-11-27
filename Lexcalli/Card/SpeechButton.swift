@@ -6,6 +6,7 @@ import SwiftUI
 struct SpeechButton: View {
     let text: String
     let language: Locale.Language
+    var size: AudioButtonStyle.Size = .regular
 
     @Environment(\.flashCard) private var configuration
 
@@ -22,7 +23,7 @@ struct SpeechButton: View {
             Self.synthesizer.stopSpeaking(at: .immediate)
             Self.synthesizer.speak(utterance)
         }
-        .buttonStyle(AudioButtonStyle())
+        .buttonStyle(AudioButtonStyle(size: size))
         .accessibilityHint("Uses a system voice")
         .onDisappear { Self.synthesizer.stopSpeaking(at: .immediate) }
     }

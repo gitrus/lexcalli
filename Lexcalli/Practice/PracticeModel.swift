@@ -33,6 +33,9 @@ final class PracticeModel {
     var writingLanguage: Locale.Language? { deck?.termLanguage }
     var feedback: ExerciseFeedback? { run?.feedback }
     var hasPendingAnswer: Bool { run?.pending != nil }
+    var acceptsAnswer: Bool {
+        phase == .studying && !isSaving && failure == nil && !hasPendingAnswer && feedback == nil
+    }
     var flashcardsReviewed: Int { run?.flashcardsReviewed ?? 0 }
     var exercisesCompleted: Int { run?.exercisesCompleted ?? 0 }
     let mode: PracticeMode
@@ -116,7 +119,8 @@ final class PracticeModel {
         let attempt: PendingAttempt?
         switch response {
         case .flashcard(let rating): attempt = run.answer(rating, at: .now).map(PendingAttempt.card)
-        case .writing, .pickOne: attempt = run.answerExercise(response, at: .now).map(PendingAttempt.exercise)
+        case .writing, .pickOne, .matchPairs:
+            attempt = run.answerExercise(response, at: .now).map(PendingAttempt.exercise)
         }
         guard let attempt else { return }
         // Kept before awaiting, so a retry resends exactly this event.

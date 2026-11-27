@@ -27,6 +27,7 @@ enum AppRoute: Hashable, Codable {
 extension View {
     /// Apply once per navigation stack.
     func appRouteDestinations() -> some View {
-        navigationDestination(for: AppRoute.self) { $0.destination }
+        // Lists draw their own background over this one.
+        navigationDestination(for: AppRoute.self) { $0.destination.containerBackground(.paper, for: .navigation) }
     }
 }
