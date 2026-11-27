@@ -17,6 +17,7 @@ struct PracticeSessionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.practice) private var configuration
     @State private var model: PracticeModel?
+    @State private var answerHapticTap = AnswerHapticTap()
 
     var body: some View {
         Group {
@@ -29,6 +30,15 @@ struct PracticeSessionView: View {
         // Outside the card, so failures stay visible after the last card.
         .safeAreaInset(edge: .bottom) {
             if let model { PracticeStatus(model: model) }
+        }
+        .sensoryFeedback(trigger: answerHapticTap) { _, tap in tap.feedback }
+        // Restarts per feedback, so leaving or continuing cuts the rhythm short.
+        .task(id: model?.feedback) {
+            guard let isRight = model?.feedback.flatMap(\.isRightAnswer) else { return }
+            for feedback in isRight ? configuration.correctAnswerHaptic : configuration.wrongAnswerHaptic {
+                answerHapticTap = AnswerHapticTap(count: answerHapticTap.count + 1, feedback: feedback)
+                do { try await Task.sleep(for: configuration.answerHapticSpacing) } catch { return }
+            }
         }
         .navigationTitle(model?.deckName ?? name)
         .navigationBarTitleDisplayMode(.inline)
@@ -151,6 +161,25 @@ private struct PracticeStatus: View {
         .font(configuration.failureFont)
         .multilineTextAlignment(.center)
         .padding(.horizontal)
+    }
+}
+
+/// The latest tap of an answer haptic; the count makes a repeated tap a new value.
+private struct AnswerHapticTap: Equatable {
+    var count = 0
+    var feedback: SensoryFeedback?
+}
+
+extension ExerciseFeedback {
+    /// Haptics only, not a grade: a self-rated flashcard has no right answer, and Writing passes accent- and
+    /// case-only differences, as its planned Good and Hard grades will.
+    fileprivate var isRightAnswer: Bool? {
+        switch self {
+        case .flashcard: nil
+        case .writing(let parts): !parts.contains { $0.kind == .difference }
+        case .pickOne(let selected, let correct): selected == correct
+        case .matchPairs(let evaluation): evaluation.correct.count == evaluation.pairing.count
+        }
     }
 }
 

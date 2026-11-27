@@ -12,6 +12,7 @@ How a learner practices in the app: screens, controls, and feedback. Terms are d
 
 - **Flashcard:** the learner reveals the answer with **Show Answer**, then rates it (Again, Hard, Good, Easy).
 - **Writing, Pick-one, and Match pairs:** confirmation locks input before saving. Feedback appears only after the save is acknowledged and remains until **Continue** or **Finish**, including on the last prompt.
+- **Haptics:** when feedback appears, two rising light taps mark a right answer and three even taps a wrong one, lighter than the system success and error haptics. Writing counts accent- and case-only differences as right; Match pairs is right only when every pair is. Flashcard ratings play none.
 - **A failed save** shows **Try Again**. It never advances to the next item or reveals the answer.
 
 ## Pick-one
