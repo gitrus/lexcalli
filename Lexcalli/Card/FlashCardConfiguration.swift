@@ -8,6 +8,8 @@ nonisolated struct FlashCardConfiguration: Equatable {
     var maxHeight: CGFloat = 376
     var flipDuration: TimeInterval = 0.45
     var cornerRadius: CGFloat = 32
+    /// Keeps the glass card from reading as white against the warm app background.
+    var glassTint: Color = Color("Paper")
     var padding: CGFloat = 24
     var spacing: CGFloat = 16
     var textFont: Font = .largeTitle.bold()

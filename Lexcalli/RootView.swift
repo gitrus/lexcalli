@@ -49,6 +49,8 @@ struct RootView: View {
                 value: isMenuOpen
             )
         }
+        // Fields and options fill with `.background`.
+        .backgroundStyle(.paper)
         .preferredColorScheme(appearance.colorScheme)
         .onChange(of: selection) { path = [] }
     }

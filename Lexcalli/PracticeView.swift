@@ -28,6 +28,7 @@ struct PracticeView: View {
                 EmptyView()
             }
         }
+        .paperGroupedBackground()
         .navigationTitle("Practice")
         .observe({ [decks = library.decks] in decks.deckSummaries() }, id: 0, into: $decks)
     }
@@ -63,6 +64,7 @@ private struct PracticeDeckSection: View {
                     .font(configuration.modeHintFont)
             }
         }
+        .listRowBackground(Color.paper)
     }
 
     @ViewBuilder

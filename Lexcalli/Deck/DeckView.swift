@@ -16,6 +16,7 @@ struct DeckView: View {
             NavigationLink(value: AppRoute.word(note.id, deck: deckID)) {
                 NoteRow(note: note, termLanguage: deck!.termLanguage, meaningLanguage: deck!.meaningLanguage)
             }
+            .listRowBackground(Color.paper)
         }
         .overlay {
             switch self.deck {
@@ -35,6 +36,7 @@ struct DeckView: View {
                 EmptyView()
             }
         }
+        .paperGroupedBackground()
         .navigationTitle(deck?.name ?? name)
         // Inline like the other pushed screens, so the name arriving after load doesn't resize the header.
         .navigationBarTitleDisplayMode(.inline)

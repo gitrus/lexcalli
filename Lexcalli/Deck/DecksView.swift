@@ -10,6 +10,7 @@ struct DecksView: View {
             NavigationLink(value: AppRoute.deck(deck.id, name: deck.name)) {
                 DeckRow(languagesOf: deck)
             }
+            .listRowBackground(Color.paper)
         }
         .overlay {
             switch decks {
@@ -27,6 +28,7 @@ struct DecksView: View {
                 EmptyView()
             }
         }
+        .paperGroupedBackground()
         .navigationTitle("Decks")
         .observe({ [decks = library.decks] in decks.deckSummaries() }, id: 0, into: $decks)
     }

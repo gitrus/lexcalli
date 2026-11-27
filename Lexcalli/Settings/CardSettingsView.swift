@@ -22,11 +22,13 @@ struct CardSettingsView: View {
             } footer: {
                 Text("Audio stays available on the card when the transcription is hidden.")
             }
+            .listRowBackground(Color.paper)
             Section {
                 Toggle("Speak Words Without Audio", isOn: $speaksMissingAudio)
             } footer: {
                 Text("Uses the best voice installed for the deck’s language.")
             }
+            .listRowBackground(Color.paper)
             if speaksMissingAudio, !termLanguages.isEmpty {
                 Section {
                     ForEach(termLanguages, id: \.self) { language in
@@ -39,8 +41,10 @@ struct CardSettingsView: View {
                         "Download Enhanced or Premium voices in Settings › Accessibility › Spoken Content › Voices for more natural speech."
                     )
                 }
+                .listRowBackground(Color.paper)
             }
         }
+        .paperGroupedBackground()
         .navigationTitle("Cards")
         .navigationBarTitleDisplayMode(.inline)
         .observe({ [decks = library.decks] in decks.deckSummaries() }, id: 0, into: $decks)

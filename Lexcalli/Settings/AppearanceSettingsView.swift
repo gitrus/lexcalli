@@ -11,7 +11,9 @@ struct AppearanceSettingsView: View {
             }
             .pickerStyle(.inline)
             .labelsHidden()
+            .listRowBackground(Color.paper)
         }
+        .paperGroupedBackground()
         .navigationTitle("Appearance")
         .navigationBarTitleDisplayMode(.inline)
     }

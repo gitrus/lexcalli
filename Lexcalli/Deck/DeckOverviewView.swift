@@ -15,6 +15,7 @@ struct DeckOverviewView: View {
                     LabeledContent("Words", value: locale.name(of: deck.termLanguage))
                     LabeledContent("Meanings", value: locale.name(of: deck.meaningLanguage))
                 }
+                .listRowBackground(Color.paper)
 
                 // Same symbols as the word rows in the deck.
                 Section("Words") {
@@ -25,7 +26,9 @@ struct DeckOverviewView: View {
                         count: deck.notes.count { $0.transcription != nil })
                     row("With Image", systemImage: "photo", count: deck.notes.count { $0.image != nil })
                 }
+                .listRowBackground(Color.paper)
             }
+            .paperGroupedBackground()
             .navigationTitle(deck.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
