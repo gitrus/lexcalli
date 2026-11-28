@@ -1,11 +1,11 @@
 # Data management
 
-How Lexcalli stores data on device, keeps it correct, and passes it to SwiftUI views. Terms are defined in the [glossary](glossary.md).
-[Data layering](data_layering.md) defines *what* data exists and who owns it; this document covers *how* the iOS app holds it. What the learner sees of it is in [data use cases](data_usecases.md) and [learning use cases](learning_usecases.md).
+How Lexcalli stores data on device and keeps it correct. Terms are defined in the [glossary](glossary.md).
+[Data layering](data_layering.md) defines *what* data exists and who owns it; this document covers *how* the iOS app holds it, and [data architecture](data_architecture.md) the code that does it: data flow into views, the persistence engine, concurrency, and testing. What the learner sees of it is in [data use cases](data_usecases.md) and [learning use cases](learning_usecases.md).
 
-The guidance comes from the project's installed skills (SwiftUI Expert, Swift Concurrency), from Apple, Android, and SQLite documentation, and from articles current as of October 2026; see [Sources](#sources).
+The guidance comes from Apple and SQLite documentation, Anki's importer, and articles current as of October 2026; see [Sources](#sources).
 
-**Status.** Milestone 1 (study stored decks and keep progress) is built: the content and card review schema, the projector, practice sessions, media files, and migrations. Milestone 2 (Anki import) has archive unpacking only. Everything marked *planned* below is design, not code.
+**Status.** Milestone 1 (study stored decks and keep progress) is built: the content and card review schema, the projector, practice sessions, media files, and migrations. Milestone 2 (Anki import) has archive unpacking and a text-only import from Files. Everything marked *planned* below is design, not code.
 
 
 ## Principles
@@ -80,7 +80,9 @@ User activity is collected in practice sessions and recorded as events. Scheduli
 
 ### Import
 
-Import is milestone 2. Only step 1's unpacking and validation is built (module `LexcalliImport`); the rest of this section is the planned design, and the app doesn't link `LexcalliImport` yet.
+Import is milestone 2. Step 1's unpacking and validation is built (module `LexcalliImport`), and the app imports a deck's text ([what the learner sees](data_usecases.md#importing-an-anki-deck)).
+
+The app depends on the `DeckFileFormat` protocol, not on any one format. A format names its filename extensions and reads an app-owned copy of the picked file into an `ImportedDeck`, reporting problems as `DeckFileError` (unsupported file, too large, unreadable). `Library.compose` wires the formats in; the first is `ApkgDeckFormat`, which reads the first two fields of every note, derives note IDs from the Anki `guid` and the deck ID from the Anki deck id, and maps the unpacker's `PackageError` to `DeckFileError`. Another format, such as CSV, is one more conformance composed there. The deck is saved in one transaction. The rest of this section is the planned design.
 
 SQLite transactions are atomic only inside the database. An import therefore follows a small recovery protocol:
 
@@ -91,7 +93,7 @@ SQLite transactions are atomic only inside the database. An import therefore fol
 5. Trigger the projector for the imported cards.
 6. On failure, and on the next launch, delete the staging files and media that no record references, and drop imports still marked *in progress*.
 
-Re-importing an updated deck matches notes by `guid`. Scheduling history is imported only on request ([import flow](data_usecases.md#importing-an-anki-deck-planned)), as Anki 23.10+ allows; otherwise cards start as new and no card review events are imported.
+Re-importing an updated deck matches notes by `guid`. Scheduling history is imported only on request ([import flow](data_usecases.md#importing-an-anki-deck)), as Anki 23.10+ allows; otherwise cards start as new and no card review events are imported.
 
 Imported scheduling follows the review model:
 
@@ -106,7 +108,7 @@ Anki's own `.apkg` importer handles cases the protocol above must match:
 - **Existing cards are not updated.** A card is skipped when its note already has a card for the same template.
 - **Due dates are relative.** Anki stores review due dates as days since the collection was created, so the importer shifts them by the difference between the two collections. Lexcalli stores absolute dates and converts only at the boundary.
 - **Revlog deduplication.** Only entries for imported cards are kept, and identical entries are skipped. Lexcalli derives the idempotency key of an imported review deterministically from the source entry, so re-importing the same file adds no history.
-- **An import report.** Anki reports notes as new, updated, duplicate, or conflicting. Lexcalli classifies notes the same way for its [import report](data_usecases.md#importing-an-anki-deck-planned).
+- **An import report.** Anki reports notes as new, updated, duplicate, or conflicting. Lexcalli classifies notes the same way for its [import report](data_usecases.md#importing-an-anki-deck).
 
 Lexcalli also treats the archive as untrusted input, and this part is built: it rejects unsafe entry names, caps the archive, entry count, per-entry and total unpacked sizes (counting bytes actually written), and decompresses zstd as a stream with a bounded window (import `UnpackedPackage`). ZIP reading sits behind the internal `ArchiveReader` protocol, implemented with [ZIPFoundation](https://github.com/weichsel/ZIPFoundation) 0.9.20 (MIT); `collection.anki21b` is decoded with libzstd from [zstd](https://github.com/facebook/zstd) 1.5.7 (used under its BSD-3-Clause option). Both are pinned to exact versions in the `LexcalliKit` package manifest and used by `LexcalliImport` only.
 
@@ -148,123 +150,6 @@ Sync is not part of the first milestone, but the model must not rule it out:
 - **Never rely on background execution for correctness.** iOS schedules `BGTaskScheduler` work at its own discretion, and force-quitting the app stops background transfers. Correctness must hold if sync runs only while the app is open.
 - **Evaluate our own backend or iCloud** against the event model above, not against feature lists.
 
-## Data flow into views
-
-These rules are already used in the codebase. They follow the SwiftUI Expert skill's state-management and environment references.
-
-```
-SwiftUI views (Lexcalli target, MainActor)
-   │ commands ▼                    ▲ observed values
-Feature models (@Observable) — only where a feature coordinates operations or holds session state
-   │ async calls with Sendable values, through `Library` (the stores and media library)
-LexcalliKit package — nonisolated, tested with `swift test`
-   ├─ LexcalliCore    domain value types, FSRS policy and projector, store protocols, media library
-   ├─ LexcalliStore   GRDB implementation of the store protocols, schema and migrations
-   └─ LexcalliImport  Anki package unpacking (milestone 2; not linked by the app yet)
-Persistence — SQLite database + media files
-```
-
-- **Domain types stay `Sendable` value types.** `Deck` and `Note` already are.
-- **Use a feature model when it pays:** a practice session coordinating its queue, answers, and lifecycle (model `PracticeModel`), or, later, an import with progress and cancellation. A simple screen reads an observed query directly into `@State`; the deck list (view `DecksView`) does this through the `observe` modifier, which keeps loading and failure distinct from an empty result.
-- **The app composes its dependencies once.** The composition root (`Library.compose`) builds the `DeckStore`, `ReviewStore`, `MediaLibrary`, and the exercise engines for each practice mode. The app launch, previews, and UI tests all go through it; a UI test changes only the launch environment (`LaunchConfiguration`), never the wiring, and views never read the process environment. Only `Library` and the sample seed import `LexcalliStore`, and the app never imports GRDB.
-- **Persistence is testable without SwiftUI**, as [the way](the_way.md#principles) requires: the store contract tests run against both `DatabaseStore` (in-memory SQLite) and a test-only `ReferenceStore`.
-
-### Choose the property wrapper by ownership
-
-```
-Owned by this view?
-├─ yes, a value          → @State private var
-├─ yes, an @Observable   → @State private var model = Model()
-└─ no, passed in
-   ├─ only displayed     → let
-   ├─ child changes it   → @Binding var
-   └─ @Observable, needs bindings → @Bindable var
-Shared model             → .environment(model) at its owner, @Environment(Model.self) in readers
-Preference               → @AppStorage(PreferenceKey.x) private var x = default
-Configuration            → @Environment(\.x) private var configuration
-```
-
-- `@State` is always `private`. Never store a parent-owned input as `@State`: it keeps the first value and ignores updates. Since SDK 27, `@State` is a macro; to seed it from `init`, declare it without a default and assign it once.
-- Pass views **only the values they read**. A row gets its `Note`, not the deck plus an index: reading one element of an observed array subscribes the row to the whole array.
-- Use `@Binding var`, never `let x: Binding<T>`. A plain binding property isn't tracked, and that often breaks only in Release builds.
-- Prefer key-path bindings (`$model.name`) over `Binding(get:set:)` closures.
-
-### In the code
-
-The code is the example; these docs don't keep copies of it:
-
-- A simple screen observing a store: the deck list (view `DecksView`) with the observed-query state (`Observed`).
-- A feature model owning a session's lifecycle and retry rule, following [Reviews](#reviews): the practice session model (model `PracticeModel`).
-- The store contracts both rely on: the domain store protocols (domain `DeckStore`, `ReviewStore`).
-
-Rules for feature models:
-
-- Models expose `private(set)` state and command methods.
-- Make frequently written property types `Equatable` so redundant writes don't invalidate views.
-- Derive values with computed properties by default. Cache a derived value only when measurement shows the computation is costly, and update the cache wherever its source changes.
-- Inside an `@Observable` class, any property wrapper (`@AppStorage`, `@Query`, `@FetchAll`) needs `@ObservationIgnored`.
-- Use `.task` for observation and loading, not `Task {}` in `onAppear`. To observe an `@Observable` from non-view code, use `Observations { … }` (Swift 6.2+, iOS 26).
-
-### Environment values
-
-- `@Entry` for custom keys, with **stable defaults**. `@Entry var store = Store()` allocates on every fallback read and invalidates readers; hold the default instance in a `static let`.
-- Don't store closures in custom keys; use a struct with `callAsFunction`, or a model.
-- Don't put high-frequency values, such as scroll offsets or drag positions, in the environment.
-
-### Previews and samples
-
-- Previews get data through the same seams as the app: the preview library (`SampleLibrary.preview`), an in-memory store seeded with the sample decks, whose media goes through a media library like imported media.
-- UI tests seed the same sample decks with `LEXCALLI_SEED_SAMPLES` and a fresh library per test with `LEXCALLI_LIBRARY`.
-- Otherwise a library gets the bundled starter decks (`StarterDecks`), each added once per library.
-
-## Persistence engine
-
-### Constraints, in order of weight
-
-1. **Data correctness.** Card review and exercise review events, projection, idempotency, constraints, migrations, and recovery, as described above.
-2. **Anki interchange.** `.apkg` and `.colpkg` files are SQLite databases; import and export are mappings between SQL schemas.
-3. **Volume.** A real collection has tens of thousands of notes and hundreds of thousands of card review events; imports are bulk and statistics are aggregate queries.
-4. **Swift 6 strict concurrency**, with MainActor default isolation in the app and a nonisolated core.
-5. **Deployment target iOS 26.** APIs that need the iOS 27 SDK and runtime are unavailable without availability checks.
-6. **Few dependencies** ([agent guide](../.agents/AGENTS.md#engineering-decisions)).
-
-### Options
-
-| | SwiftData | GRDB | SQLiteData (on GRDB) |
-| --- | --- | --- | --- |
-| Owner | Apple | open source, maintained for about a decade (v7.11.1) | Point-Free, open source (v1.12.1) |
-| Model shape | `@Model` classes | structs (`Codable`, `FetchableRecord`) | `@Table` structs |
-| Sendable models | no; pass `PersistentIdentifier` | yes | yes |
-| SQL access | none (predicates only) | full | full, type-safe query builder plus raw SQL |
-| Observation | `@Query`; `ResultsObserver` outside views, **iOS 27+** | `ValueObservation` (main-actor callbacks by default) | `@FetchAll` / `@FetchOne` / `@Fetch` |
-| Migrations | `VersionedSchema` + `SchemaMigrationPlan` | ordered `DatabaseMigrator` steps in SQL | the same as GRDB |
-| iCloud sync | private database only; no unique constraints; all properties optional or defaulted | not built in | `SyncEngine` on CloudKit, including sharing; globally unique primary keys |
-| Extra dependencies | none | GRDB | GRDB, StructuredQueries, swift-dependencies |
-
-Core Data is left out: Lexcalli has no existing Core Data store to carry, and Core Data brings the same class-based object model as SwiftData.
-
-### Assessment
-
-- **GRDB is the conservative starting point.** Its SQLite semantics (transactions, constraints, `ON CONFLICT`, the backup API) are part of domain correctness here, and the core keeps `Sendable` structs.
-- **GRDB stays behind store protocols.** `LexcalliCore` defines domain-shaped stores (`DeckStore`, `ReviewStore`; an import store is planned), never generic CRUD, and doesn't import GRDB; `LexcalliStore` implements them. A shared contract test suite checks idempotent appends, atomic projection writes, and observation against every implementation, so SwiftData can replace GRDB if the experiment calls for it; migrations and file durability are tested against `DatabaseStore` directly.
-- **SwiftData remains a legitimate comparison**, but not the default:
-  - It needs `@Model` classes, which means either leaking them into the core or mapping them to structs.
-  - With MainActor default isolation it needs `@Model nonisolated` and a `@ModelActor` created off the main thread.
-  - Its CloudKit sync forbids unique constraints.
-  - Most of its 2026 improvements (`ResultsObserver`, `HistoryObserver`, `sectionBy`, `@Attribute(.codable)`, `Predicate(all:)`) need iOS 27, above our deployment target. Reviewers also report open problems: `ModelActor` sometimes runs on the main thread, and `propertiesToFetch` doesn't work.
-- **Don't adopt SQLiteData just for CloudKit sync yet.** As of October 2026 its issue tracker has open reports of divergence between devices after concurrent offline edits (#274), violations of last-edit-wins (#354), data loss after delete and re-insert (#418), and local child deletion after a quota error (#547). These are reports, not proof that Lexcalli would be affected. But progress preservation is non-negotiable, so the sync layer would have to be validated against our event model first.
-
-The experiment below decides between GRDB and SwiftData with evidence, not feature lists.
-
-## Concurrency
-
-- **App target:** MainActor by default. Views and models live there and `await` the core.
-- **Core:** nonisolated. Stores do their work off the main actor, through `@concurrent` async functions or the database library's queues, not `Task.detached`.
-- **Only `Sendable` values cross boundaries:** domain structs, commands, and identifiers.
-- **Writes are serialized:** a GRDB `DatabasePool` has one writer, and readers work on consistent snapshots.
-- **The projector** runs off the main actor, synchronously inside the store's write transaction that ends a session (or opens the next one), so a card's new state and its checkpoint commit together.
-- **Long work** runs cancellably off the main actor: `MediaLibrary.add` checks for cancellation between chunks. Imports (planned) will also report progress to a MainActor model and follow the [import protocol](#import).
-
 ## Media
 
 - Files live under `Application Support/Lexcalli/Media/<hash-prefix>/<hash>.<ext>`: app-managed, not user-browsable, and backed up because they are user content. They are written to `.staging` first and moved into place once hashed (domain `MediaLibrary`).
@@ -277,13 +162,6 @@ The experiment below decides between GRDB and SwiftData with evidence, not featu
 - Use `@AppStorage` with keys from `PreferenceKey` only for small device-local settings.
 - Known debt (deferred): each default value is repeated at every `@AppStorage` use site. When it starts to hurt, centralize the defaults with `UserDefaults.standard.register(defaults:)` or with one typed accessor per preference.
 - Study settings (daily limits, desired retention, FSRS parameters) are **learning data**, not preferences. They belong in the database because they affect scheduling and are exported to Anki deck options.
-
-## Testing
-
-- Use realistic fixtures, not generic library benchmarks. An imported collection must survive launch, study, termination, migration, re-import, and export without losing semantic content or review history.
-- **Package (`just test`):** Swift Testing. Store contract tests run against `DatabaseStore` and `ReferenceStore`; durability tests cover reopening, WAL, migrations, and media files; import tests unpack `.apkg` fixtures generated with real Anki and reject hostile archives. Export fixtures come with export.
-- **Projector:** incrementally folding interleaved card and graded exercise observations must equal rebuilding from the baseline, including after a crash between observations or out-of-order arrival followed by repair. Ungraded events must leave scheduling unchanged.
-- **App:** XCTest UI tests launched with a seeded store (`just ui-test`). The run fails unless every required journey actually ran and passed: settings navigation, finishing a session, review history and due dates surviving termination, and the Mixed practice journeys. The UI-test result checker (`check_ui_tests.py`, run by `just ui-test`) verifies the result bundle. Simulator checks come first; device checks cover performance and lifecycle (see [the way](the_way.md#verification-strategy)).
 
 ## Anki file format notes
 
@@ -299,21 +177,6 @@ These notes were collected for the importer. The format is defined by Anki's sou
   - Also `decks`, `deck_config`, `notetypes`, `fields`, `templates`, `tags`, `config`, and `graves` (deletions).
 - Rating (1–4) and card type (0–3) numbering already match; `CompatibilityTests` in `LexcalliCoreTests` guards it.
 
-## Next experiment
-
-This is a narrowly scoped persistence experiment rather than the full design. It follows the [milestones](the_way.md#first-milestone): milestone 1 covered the store, card-review-event-and-projection, and migration rows on GRDB; import with media, large collections, and the Anki round-trip remain for milestone 2 and later.
-
-| Experiment | Acceptance criterion |
-| --- | --- |
-| Store | Decks and notes are saved and loaded; changes reach SwiftUI without refreshing unrelated rows |
-| Card review event and projection | A retry never creates an extra card review event; a crash during projection never applies an event twice; rebuilding from events and baselines gives the same state |
-| Import with media | A failure or forced interruption never leaves committed references to missing media |
-| Migration | Data survives upgrading a real previous-version fixture, and a failed migration restores from the snapshot |
-| Large collection | Import and query times, and UI responsiveness, are measured on a device |
-| Anki round-trip | Notes, identifiers, media, and supported review history come back semantically equivalent |
-
-It is built on GRDB. Repeat only the store and card-review-event rows on SwiftData if GRDB shows real friction.
-
 ## Open questions
 
 - Our own backend versus iCloud sync.
@@ -322,49 +185,14 @@ It is built on GRDB. Repeat only the store and card-review-event rows on SwiftDa
 - Media deduplication across decks.
 - Which side wins when one device edits a note that another device deleted.
 
-## Prior art
-
-These ideas are older than the current frameworks; the tooling changed more than the concepts.
-
-| School | Established approach | What Lexcalli borrows | What to avoid |
-| --- | --- | --- | --- |
-| Delphi / FireDAC | data modules, datasets, cached updates, explicit transactions | persistence separate from screens; an explicit unit of work per operation (`submit review`) | binding mutable database records throughout the UI |
-| Android / Jetpack | Room, repositories, Flow, unidirectional data flow, offline-first | the local database as source of truth; observed queries; commands that write locally first | a mandatory ViewModel, repository, and use case for every screen; Android's own guide allows plain classes where a state holder adds nothing |
-| Relational design | constraints, transactions, migrations, stable identity | invariants enforced by the schema | hiding SQL behind generic CRUD interfaces |
-| Event sourcing / CQRS | append-only event log, projections, rebuild from history | separate authoritative review logs; scheduling state as a checkpointed projection | event-sourcing everything: notes, decks, and settings stay plain mutable rows |
-| Modern SwiftUI | Observation, ownership-based state, async/await | native reactive UI with thin adaptation | copying persistent state into large observable objects |
-
 ## Sources
-
-Skills (local, `.agents/skills/`):
-
-- SwiftUI Expert, `references/state-management.md` and `references/environment-patterns.md`.
-- Swift Concurrency, `references/observation.md` and `references/core-data.md`.
 
 Platform documentation:
 
-- [Apple: Managing model data in your app](https://developer.apple.com/documentation/swiftui/managing-model-data-in-your-app)
 - [Apple: Encrypting your app's files](https://developer.apple.com/documentation/uikit/encrypting-your-app-s-files) (data protection classes)
 - [Apple: Optimizing your app's data for iCloud backup](https://developer.apple.com/documentation/foundation/optimizing-your-app-s-data-for-icloud-backup)
 - [Apple: BGTaskScheduler](https://developer.apple.com/documentation/backgroundtasks/bgtaskscheduler)
-- [Android: Build an offline-first app](https://developer.android.com/topic/architecture/data-layer/offline-first)
-- [Android: State holders and UI state](https://developer.android.com/topic/architecture/ui-layer/stateholders)
 - [SQLite: Online backup API](https://www.sqlite.org/backup.html), [VACUUM INTO](https://www.sqlite.org/lang_vacuum.html), [Write-ahead logging](https://www.sqlite.org/wal.html)
-
-SwiftData (iOS 26–27):
-
-- [SwiftData in appleOS 27](https://mjtsai.com/blog/2026/06/23/swiftdata-in-appleos-27/) (Michael Tsai)
-- [SwiftData in iOS 27: Observation and History](https://blakecrosley.com/blog/swiftdata-ios-27-observation-history)
-- [WWDC26: SwiftData](https://www.pointfree.co/episodes/ep372-wwdc26-swiftdata) (Point-Free)
-- [Fatbobman's Swift Weekly #140](https://fatbobman.com/en/weekly/issue-140/)
-- [SwiftData Migrations: Lightweight vs Custom](https://blakecrosley.com/blog/swiftdata-migrations-guide)
-- [Concurrent Programming in SwiftData](https://fatbobman.com/en/posts/concurret-programming-in-swiftdata/) (Fatbobman)
-- [@ModelActor with default actor isolation = MainActor](https://developer.apple.com/forums/thread/788262) (Apple Developer Forums)
-
-SQLite-based libraries:
-
-- [GRDB.swift](https://github.com/groue/GRDB.swift)
-- [SQLiteData](https://github.com/pointfreeco/sqlite-data) and its open sync issues: [#274](https://github.com/pointfreeco/sqlite-data/issues/274), [#354](https://github.com/pointfreeco/sqlite-data/issues/354), [#418](https://github.com/pointfreeco/sqlite-data/issues/418), [#547](https://github.com/pointfreeco/sqlite-data/issues/547)
 
 Anki:
 

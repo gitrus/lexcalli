@@ -1,7 +1,7 @@
 # Glossary
 
 Shared terms used across the docs. Other documents link here instead of redefining a term.
-Storage mechanics (projector `Projector`, checkpoint `ProjectionCheckpoint`, outbox) are described where they are used, in [data management](data_management.md).
+Storage mechanics (projector `Projector`, checkpoint `ProjectionCheckpoint`, outbox) are described where they are used, in [data management](data_management.md) and [data architecture](data_architecture.md).
 Terms marked *(planned)* have no implementation yet. A name in parentheses is the type that implements the term, in `LexcalliCore` unless noted.
 
 ## Content

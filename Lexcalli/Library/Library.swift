@@ -1,5 +1,6 @@
 import Foundation
 import LexcalliCore
+import LexcalliImport
 import LexcalliStore
 import SwiftUI
 
@@ -9,11 +10,13 @@ nonisolated struct Library: Sendable {
     let reviews: any ReviewStore
     let media: MediaLibrary
     let exerciseEngines: ExerciseEnginesByMode
+    let deckFormats: [any DeckFileFormat]
 
     /// The one place dependencies are wired: the app launch, previews and UI tests all come through here, so tests
     /// exercise the production graph with only the launch's test hooks swapped in.
     static func compose(
-        store: some DeckStore & ReviewStore, media: MediaLibrary, launch: LaunchConfiguration = LaunchConfiguration()
+        store: some DeckStore & ReviewStore, media: MediaLibrary, launch: LaunchConfiguration = LaunchConfiguration(),
+        deckFormats: [any DeckFileFormat] = [ApkgDeckFormat()]
     ) -> Library {
         var reviews: any ReviewStore = store
         var exerciseEngines = ExerciseEnginesByMode.standard
@@ -23,7 +26,8 @@ nonisolated struct Library: Sendable {
                 if launch.failsFirstExerciseAcknowledgement { reviews = LostExerciseAcknowledgement(base: store) }
             }
         #endif
-        return Library(decks: store, reviews: reviews, media: media, exerciseEngines: exerciseEngines)
+        return Library(
+            decks: store, reviews: reviews, media: media, exerciseEngines: exerciseEngines, deckFormats: deckFormats)
     }
 
     /// Fills an empty library as the launch asks; starter decks that fail to load never block opening.

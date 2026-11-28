@@ -5,6 +5,15 @@
 
 An Anki-inspired language-learning app for mastering vocabulary, collocations, and expressions through spaced repetition, active recall, and interactive exercises.
 
+## What works today
+
+- **Decks:** starter lessons on first launch, browsable word lists with audio, transcription, and images, and text-only import of `.apkg` decks from Files.
+- **Flashcards:** reveal, then rate (Again, Hard, Good, Easy); scheduling uses FSRS-6.
+- **Mixed practice:** each note gets a frozen exercise — flashcard, Writing, Pick-one, or Match pairs — with feedback after the answer is saved and light haptics for right and wrong answers.
+- **Look:** warm paper surfaces with Liquid Glass controls, in light and dark mode.
+
+How each flow behaves is described in [learning use cases](docs/learning_usecases.md).
+
 ## Development notes
 
 - [Docs](docs/README.md) — documentation for recording project decisions.
@@ -15,13 +24,14 @@ An Anki-inspired language-learning app for mastering vocabulary, collocations, a
 
 - Requirements: Xcode 26.4+ (Swift 6.3+) and [just](https://github.com/casey/just). UI-test result checks also require Python 3.
 - `just open` opens the project; `just run` launches the app in a simulator (`just run booted` reuses the one already open); `just check` runs lint, package tests and the app build.
+- On a physical iPhone: the project has no signing team, so pick yours under Signing & Capabilities in Xcode, or build from the command line with `DEVELOPMENT_TEAM=<team>` and `-allowProvisioningUpdates`, then install with `xcrun devicectl device install app`. Keep the phone unlocked while installing. Builds signed with a free personal team stop launching after 7 days.
 
 ## Tests
 
 | Suite | Framework | Covers | Run |
 |---|---|---|---|
-| `LexcalliKit/Tests/LexcalliCoreTests` | Swift Testing | Scheduling, projection, study queue, practice runs | `just test` |
-| `LexcalliKit/Tests/LexcalliStoreTests` | Swift Testing | Store contract, durability (reopen, WAL, migrations), media files | `just test` |
+| `LexcalliKit/Tests/LexcalliCoreTests` | Swift Testing | Scheduling, projection, study queue, practice runs, Writing / Pick-one / Match pairs exercises | `just test` |
+| `LexcalliKit/Tests/LexcalliStoreTests` | Swift Testing | Store contract, durability (reopen, WAL, migrations), exercise events, round limits, media files | `just test` |
 | `LexcalliKit/Tests/LexcalliImportTests` | Swift Testing | Package unpacking against generated fixtures, hostile archives | `just test` |
 | `LexcalliUITests` | XCTest | Navigation, studying, Mixed practice, and progress kept across app termination | `just ui-test [simulator name or UDID]` |
 

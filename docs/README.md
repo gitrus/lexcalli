@@ -9,7 +9,8 @@ This directory contains decisions and notes related to the project.
 - [Glossary](glossary.md) — shared terms and their Anki equivalents.
 - [Product](product.md) — purpose, intended users, required capabilities, product boundaries, and open questions.
 - [Data layering](data_layering.md) — Anki-data-format compatible foundations, Lexcalli extensions, data ownership, and application/backend requirements.
-- [Data management](data_management.md) — how the iOS app stores data (persistence engine, media, preferences, migrations) and passes it to SwiftUI views.
+- [Data management](data_management.md) — how the iOS app stores data and keeps it correct: identities, review events, import, migrations, backups, media, and preferences.
+- [Data architecture](data_architecture.md) — the code that holds it: data flow into SwiftUI views, the persistence engine choice, concurrency, and testing.
 - [Learning engine](learning_engine.md) — exercise/knowledge internal technical concepts: cards, exercises, practice modes, practice history, validation, and the relationship to FSRS scheduling.
 - [Learning use cases](learning_usecases.md) — how a learner practices: choosing a mode, answering each exercise type, feedback, and session summaries.
 - [Data use cases](data_usecases.md) — what the learner sees of their library: first launch, opening after an update, import, and export.

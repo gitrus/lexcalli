@@ -60,7 +60,7 @@ These requirements are specified in more detail by the [product](product.md), [l
 The first target, a device-installable build that imports a small Anki deck with media, studies it, and preserves history after relaunch, is split in two:
 
 1. **Milestone 1: study stored decks and keep progress.** Built and verified locally: fixed flashcard queue, rating, one durable card review event per answer (including retries), FSRS-6 projection on finish and on the next open, media from app-managed files, and migrations that never leave a half-migrated or empty library, with upgrades tested from a frozen copy of the first shipped schema. Decks come from the bundled starter deck, or the sample decks in UI tests. Remaining: a device run, a manual accessibility pass, and a store-level termination test.
-2. **Milestone 2: import an Anki deck with media.** Only archive unpacking is built; mapping, the import store, media and progress import, the import UI, and recovery remain. See [import](data_management.md#import).
+2. **Milestone 2: import an Anki deck with media.** Archive unpacking and a text-only import from Files are built; field mapping, media, scheduling history, the import report, and recovery remain. See [import](data_management.md#import).
 
 Neither is a claim that CI or a TestFlight configuration exists.
 
