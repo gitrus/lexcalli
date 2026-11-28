@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		A10000000000000000000010 /* LexcalliCore in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000020 /* LexcalliCore */; };
 		A10000000000000000000011 /* LexcalliStore in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000021 /* LexcalliStore */; };
+		A10000000000000000000012 /* LexcalliImport in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000022 /* LexcalliImport */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -46,6 +47,7 @@
 			files = (
 				A10000000000000000000010 /* LexcalliCore in Frameworks */,
 				A10000000000000000000011 /* LexcalliStore in Frameworks */,
+				A10000000000000000000012 /* LexcalliImport in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -99,6 +101,7 @@
 			packageProductDependencies = (
 				A10000000000000000000020 /* LexcalliCore */,
 				A10000000000000000000021 /* LexcalliStore */,
+				A10000000000000000000022 /* LexcalliImport */,
 			);
 			productName = Lexcalli;
 			productReference = A10000000000000000000030 /* Lexcalli.app */;
@@ -470,6 +473,10 @@
 		A10000000000000000000021 /* LexcalliStore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = LexcalliStore;
+		};
+		A10000000000000000000022 /* LexcalliImport */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LexcalliImport;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

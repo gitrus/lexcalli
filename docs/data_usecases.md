@@ -11,7 +11,17 @@ What the learner sees of their library at first launch, after an app update, and
 - If the library can't be upgraded, the app opens nothing and says the decks were left unchanged, asking the learner to update the app or contact support. It never shows an empty library in their place ([migration rules](data_management.md#schema-evolution-and-recovery)).
 - A library saved by a newer version of Lexcalli isn't opened; the app asks the learner to update.
 
-## Importing an Anki deck (planned)
+## Importing an Anki deck
+
+Built so far (text only):
+
+- **Import Deck** on the Decks screen, or in its empty state, opens Files and accepts the deck formats the app is built with, today `.apkg` packages.
+- The deck is read off the main thread. A sheet shows its name, the word count, and the word and meaning languages guessed from the text; the learner can change all three before importing. Cancel stops reading.
+- The first field becomes the word and the second the meaning, with HTML and `[sound:]` tags removed. Notes missing either are left out, and the sheet says how many.
+- Images, audio, and review history aren't imported yet; cards start as new.
+- Importing the same deck again updates it in place: notes are matched by their Anki `guid`, and existing cards keep their scheduling. Notes removed from the file stay in the deck.
+
+Planned:
 
 - The learner chooses whether to import scheduling history, as Anki 23.10+ allows. Without it, cards start as new.
 - On a note type's first import, the learner maps its fields and card directions; the mapping is remembered per note type ([Anki mapping](glossary.md#anki-mapping)).
